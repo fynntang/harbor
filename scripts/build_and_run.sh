@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+set -euo pipefail
+MODE="${1:-run}"
+if [ "$#" -gt 0 ]; then shift; fi
+case "$MODE" in
+  run|--build-only|--debug|--logs|--telemetry|--verify) ;;
+  *) echo "usage: $0 [run|--build-only|--debug|--logs|--telemetry|--verify] [--registry PATH]" >&2; exit 2 ;;
+esac
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_BUNDLE="$ROOT_DIR/dist/Harbor.app"
+cd "$ROOT_DIR"
+# Stop only this checkout's GUI. Refuse while its bundled CLI has an operation in flight.
+python3 - "$APP_BUNDLE" <<'PY'
+import os, signal, subprocess, sys
+bundle = sys.argv[1]
+rows = subprocess.check_output(['/bin/ps', '-ww', '-axo', 'pid=,comm='], text=True).splitlines()
+parsed = [row.strip().split(None, 1) for row in rows]
+if any(len(row) == 2 and row[1] in [bundle + '/Contents/Helpers/harbor', bundle + '/Contents/Helpers/harbor-native'] for row in parsed):
+    sys.exit('Harbor has an operation in progress. Wait for it to finish before rebuilding.')
+for row in parsed:
+    if len(row) == 2 and row[1] == bundle + '/Contents/MacOS/Harbor':
+        try: os.kill(int(row[0]), signal.SIGTERM)
+        except ProcessLookupError: pass
+PY
+cargo build --release --locked -p harbor-cli
+APP_VERSION="$(cargo metadata --locked --no-deps --format-version 1 | python3 -c 'import json, sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"] == "harbor-cli"))')"
+swift build --package-path apps/Harbor --scratch-path target/swift-harbor
+SWIFT_BIN="$(swift build --package-path apps/Harbor --scratch-path target/swift-harbor --show-bin-path)/Harbor"
+mkdir -p dist
+STAGING="$(mktemp -d "$ROOT_DIR/dist/.harbor-build.XXXXXX")"
+trap 'rm -rf "$STAGING"' EXIT
+CONTENTS="$STAGING/Harbor.app/Contents"
+mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Helpers" "$CONTENTS/Resources"
+cp apps/Harbor/Resources/Harbor.icns "$CONTENTS/Resources/Harbor.icns"
+cp "$SWIFT_BIN" "$CONTENTS/MacOS/Harbor"
+cp target/release/harbor "$CONTENTS/Helpers/harbor"
+cp "$(dirname "$SWIFT_BIN")/harbor-native" "$CONTENTS/Helpers/harbor-native"
+cat > "$CONTENTS/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleExecutable</key><string>Harbor</string>
+<key>CFBundleIdentifier</key><string>local.harbor.desktop</string>
+<key>CFBundleName</key><string>Harbor</string>
+<key>CFBundleDisplayName</key><string>Harbor</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleIconFile</key><string>Harbor.icns</string>
+<key>CFBundleShortVersionString</key><string>${APP_VERSION}</string>
+<key>CFBundleVersion</key><string>1</string>
+<key>LSMinimumSystemVersion</key><string>14.0</string>
+<key>NSPrincipalClass</key><string>NSApplication</string>
+<key>NSHighResolutionCapable</key><true/>
+</dict></plist>
+PLIST
+/usr/bin/codesign --force --sign - "$CONTENTS/Helpers/harbor"
+/usr/bin/codesign --force --sign - "$CONTENTS/Helpers/harbor-native"
+/usr/bin/codesign --force --sign - "$STAGING/Harbor.app"
+/usr/bin/codesign --verify --deep --strict "$STAGING/Harbor.app"
+# This is a generated app in dist; no client apps or profile data are stored here.
+rm -rf "$APP_BUNDLE"
+mv "$STAGING/Harbor.app" "$APP_BUNDLE"
+case "$MODE" in
+  --build-only) echo "$APP_BUNDLE" ;;
+  --debug) lldb -- "$APP_BUNDLE/Contents/MacOS/Harbor" "$@" ;;
+  *)
+    /usr/bin/open -n "$APP_BUNDLE" --args "$@"
+    case "$MODE" in
+      --verify)
+        sleep 1
+        python3 - "$APP_BUNDLE/Contents/MacOS/Harbor" <<'PYVERIFY'
+import subprocess, sys
+rows = subprocess.check_output(['/bin/ps', '-ww', '-axo', 'comm='], text=True).splitlines()
+if sys.argv[1] not in rows: sys.exit('The built Harbor GUI process did not remain running.')
+PYVERIFY
+        ;;
+      --logs) /usr/bin/log stream --info --style compact --predicate 'process == "Harbor"' ;;
+      --telemetry) /usr/bin/log stream --info --style compact --predicate 'subsystem == "local.harbor.desktop"' ;;
+    esac
+    ;;
+esac

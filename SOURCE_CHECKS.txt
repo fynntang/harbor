@@ -1,0 +1,16 @@
+HISTORICAL SNAPSHOT: checks from the initial source-generation environment only.
+The old package name and NOT RUN entries below are preserved as historical evidence,
+not as the current repository layout or the results of later local/CI checks.
+
+PASS: workspace Cargo.toml parses with Python tomllib.
+PASS: crates/harbor-core/Cargo.toml parses; src/lib.rs exists.
+PASS: crates/harbor-cli/Cargo.toml parses; src/main.rs exists.
+PASS: CI YAML parses; trigger and jobs sections exist (workflow was NOT run).
+PASS: scripts/check.sh passes sh -n (cargo commands were NOT run).
+INFO: 25 Rust test functions included; NOT executed.
+PASS: all declared harbor-core module files exist.
+PASS: package tree contains no .git, target, vendor .app, auth.json, or Cookies files.
+NOT RUN: Rust syntax/type checking, rustfmt, cargo build, cargo test, Clippy.
+REASON: no rustc/cargo executable available in authoring environment.
+NOT RUN: macOS app launch, signatures, login, account separation, MCP/Skills, updater behavior.
+REASON: authoring runtime is Linux, without the user's app bundle or macOS GUI.

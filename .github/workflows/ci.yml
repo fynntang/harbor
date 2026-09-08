@@ -1,0 +1,27 @@
+name: Rust and macOS GUI checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stable Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+          rustup default stable
+      - name: Format, test, lint and build
+        run: sh scripts/check.sh
+      - name: Test and package macOS GUI
+        if: runner.os == 'macOS'
+        run: |
+          swift test --package-path apps/Harbor --scratch-path target/swift-harbor
+          ./scripts/build_and_run.sh --build-only
+      # This job does not contain ChatGPT, accounts or vendor app bundles.
+      # Its green result would not prove actual macOS GUI/account isolation.

@@ -1,0 +1,95 @@
+# macOS GUI
+
+[English](../GUI.md) | 简体中文 · [文档目录](README.md) · [项目主页](../../README.zh-CN.md)
+
+## 构建与运行
+
+要求：macOS 14+、Rust 1.89+/Cargo、Swift 6+/macOS SDK 和工具、Bash、Python 3。SwiftPM 没有第三方包依赖。
+
+在仓库根目录执行：
+
+```bash
+./scripts/build_and_run.sh
+./scripts/build_and_run.sh --build-only
+./scripts/build_and_run.sh --verify
+swift test --package-path apps/Harbor --scratch-path target/swift-harbor
+```
+
+产物为 `dist/Harbor.app`，内置 debug Swift GUI/原生辅助程序和 release Rust CLI。采用本地 ad-hoc 签名，不是 Developer ID 签名或公证版本。移动时应复制整个 bundle。仅 `cargo install` 不会提供停止/删除所需的原生辅助程序。
+
+所有构建模式，包括 `--build-only`，都会检查本 checkout 的内置 helper 是否正在执行操作，存在操作时拒绝重建，否则停止该 checkout 现有的 Harbor GUI。不会停止客户端实例。`--verify` 启动 Harbor 并检查精确可执行路径对应的进程一秒后仍存在，不是界面或账号测试。`--debug` 使用 LLDB；`--logs` 和 `--telemetry` 打开系统日志流，不保证每个操作都有日志事件。
+
+Codex Run 指向同一个脚本。可以指定独立 registry：
+
+```bash
+./scripts/build_and_run.sh --verify --registry /absolute/path/test-registry
+```
+
+`--registry` 前必须提供模式。GUI 显示 registry 路径，对 `/tmp` 或 `/private/tmp` 显示警告。副本默认目标仍为 `~/Applications/Harbor/ChatGPT-<name>.app`，只改变 registry 不会改变应用副本位置。临时数据不适合持久账号；没有自动迁移按钮。
+
+## 控件与状态
+
+可在工具栏语言选择器、**Harbor → 语言** 或顶部菜单栏的 **语言** 子菜单中选择 **English** / **简体中文**。自定义窗口、表单、菜单、状态、进度和 GUI 错误提示即时更新，保留表单输入和操作状态。选择保存在应用 `UserDefaults` 的 `HarborGUILanguage` 中。首次启动使用系统首个受支持的语言（中文映射为简体中文），否则使用英文。设置仅影响 Harbor，不改变客户端副本或系统语言。
+
+底层诊断、CLI 帮助、技术检查报告及系统控制的菜单/对话框文字保留原始/系统语言。双语文案编译进 GUI 可执行文件，无需单独的本地化资源包。
+
+| 控件 | 行为 |
+|---|---|
+| 创建副本 / Create copy | 选择官方来源和新名称，调用 `clone`；没有 GUI `create`/`adopt` 表单。 |
+| 启动 / Start | 调用 `start`；应用检查存在问题或启动冲突时禁用。 |
+| 停止 / Stop | 在 `running` 或 `helpers_running` 状态可用，请求正常退出。 |
+| 删除实例… / Delete instance | 为符合条件的受管副本显示范围确认；总是在 `remove` 前调用 `stop`。 |
+| 检查 / Check | 展示 `doctor` 结果，包括警告。 |
+| 更换图标… / Change icon | 副本符合条件、检查无问题且状态为 `stopped` 时可用。 |
+| 刷新 / Refresh | 重新读取登记与状态；窗口激活和 ⌘R 也会触发。 |
+| 文件夹控件 | 在 Finder 显示路径。日志目录按钮目前打开 `codex_home` 的父目录；接管数据时可能不是 Harbor 日志所在目录。 |
+
+状态层通过 busy 状态串行执行修改操作和刷新。错误会显示，不推断操作成功。身份或版本差异会标为需要检查。GUI 没有 `--accept-version-change`、环境变量编辑器、更新器或恢复按钮。无效的 registry 条目可能导致整个列表读取失败；此界面不负责修复登记。
+
+顶部帆船菜单支持打开 Harbor、创建副本和退出。主窗口使用固定值复用。关闭全部窗口保留菜单栏入口，操作进行时会阻止正常退出。客户端仍为独立进程。没有开机启动项、launchd 守护程序或定时轮询。
+
+## 图标
+
+Harbor 自身的 Dock/Finder 图标使用与菜单栏相同的 `sailboat` SF Symbol：白色线条、透明背景。菜单栏模板跟随系统外观，打包的 Dock 图片固定为白色。`scripts/generate_app_icon.swift` 生成 iconset/PNG；打包复制 `Resources/Harbor.icns` 并设置 `CFBundleIconFile`，应用启动时还会显式加载它。
+
+实例图标在**更换图标…**中选择 PNG、JPEG 或 ICNS，文件最多 16 MiB。GUI 将图像等比例放入透明的 1024 像素正方形。菜单栏图像可选实例首字母或图片轮廓。模板忽略颜色，不透明照片会形成不透明轮廓。客户端自身必须开启菜单栏入口才会显示该图标；Harbor 不切换该设置。
+
+CLI 接受边长最多 4096 像素、文件最多 16 MiB 的正方形 PNG，`--tray-image` 可选。条件为 `adopted_data=false`、Harbor 风格 Bundle ID、身份/版本匹配及预期的资源/签名结构。通过 `create` 登记的准备好应用也可能满足条件；没有独立的密码学来源记录证明它由 `clone` 创建。
+
+GUI 在报告残留辅助进程时禁用图标更新。核心 `icon` 命令在暂存前和交换前只检查匹配的主可执行程序，不使用停止/删除的完整辅助进程扫描。建议先点击**停止**再改图标。图标暂存使用 `cp -cR`，没有 clone 命令的 `ditto` 回退。
+
+操作替换支持的 Dock/Finder 资源及可选的 18/36 像素菜单栏模板，重签外层副本、验证后原子交换。最终验证失败会尝试回滚；回滚失败会保留旧应用的暂存路径。不改变 ASAR、嵌套程序或账号目录。重新启动客户端后使用新资源。没有内置的恢复原厂图标操作。
+
+<a id="removal-and-recovery"></a>
+## 删除与恢复
+
+原生 helper 对 macOS 登记/就绪、发送正常退出请求和观察退出共设置 15 秒时限。之后 Rust 最多再等待五秒，检查 app、`codex_home`、`gui_home` 中的辅助进程。已知路径的孤儿 Crashpad、Computer Use 和快捷键监视程序，在核对属主、父进程及启动时间后可能收到 SIGTERM。未知或仍有活动父进程的 helper 会阻止完成，不回退到 SIGKILL。失败或超时会阻止 GUI 删除。
+
+删除默认将整个 Profile 目录保留到 `<root>/retained/<name>-<random>/profile`，仅将应用移到系统废纸篓。登记会从列表移除，界面显示保留路径。勾选**同时将账号数据移到废纸篓**会把整个 Profile 目录也移走，包括元数据、日志和数据。Harbor 不清空废纸篓。
+
+删除要求 `adopted_data=false`、预期的 Harbor Bundle ID，且数据路径必须正好是该 Profile 自己的 `codex`/`gui`。运行中的进程、默认数据重叠、registry 重叠及其他实例路径重叠都会被拒绝。当前路径（包括工作目录）和应用身份仍须通过检查，应用或目录缺失可能阻止删除。这不是通用的损坏登记清理工具。与 start/icon 不同，仅版本差异不会阻止生命周期操作。
+
+打包后，在仓库根目录使用 CLI：
+
+```bash
+dist/Harbor.app/Contents/Helpers/harbor stop work
+dist/Harbor.app/Contents/Helpers/harbor remove work --yes
+```
+
+`--delete-data` 可选，应明确选择。CLI `remove` 本身不停止程序。后续项目移到废纸篓失败时，原生 helper 尝试恢复此前项目，不覆盖现有路径。默认保留模式失败时还会尝试恢复 Profile 目录。多个路径不是一个原子事务；中断或回滚失败后可能需要从 `retained` 或废纸篓手工恢复。
+
+保留的 `profile.json` 仍记录原路径。恢复时先退出相关客户端，并从废纸篓还原应用。如果原登记路径空缺且未被复用，可把整个保留的 Profile 移回原位置。否则用空闲名称执行 `adopt`，传入实际保留的 `codex`/`gui` 路径，检查路由、执行 `doctor` 后再通过 Harbor 启动。接管不会修补旧 `LSEnvironment`，所以移动数据后仍不应直接启动应用。接管的 Profile 不支持 GUI 删除或图标更新。路径被占用或范围不确定时应先检查，不要覆盖。没有自动恢复流程。
+
+## 桥接与 JSON 协议
+
+[HarborClient](../../apps/Harbor/Sources/Harbor/Services/HarborClient.swift) 用独立 argv 调用 `Contents/Helpers/harbor`，不经过 shell；stdout/stderr 在 UI 线程外并发读取。[HarborStore](../../apps/Harbor/Sources/Harbor/Stores/HarborStore.swift) 管理操作顺序，文件和进程校验仍由 Rust 负责。[HarborNative](../../apps/Harbor/Sources/HarborNative/NativeOperations.swift) 处理正常退出和废纸篓。
+
+`--json` 支持 `list`、`show`、`status`、`clone`、`icon`、`start`、`stop`、`remove`、`doctor`，不支持 `create`、`adopt`、`logs`、`shortcut`。[json.rs](../../crates/harbor-cli/src/json.rs) 定义协议：
+
+- stdout：一个对象，包含 `api_version: 1`、`ok`，以及 `data` 或 `error`。
+- 普通操作错误退出 1；Clap 参数语法错误输出 stderr、退出 2，不使用 JSON envelope。
+- `doctor`：Store 初始化成功后，即使诊断失败也返回成功 envelope/退出 0，并设置 `data.passed=false`；必须检查该字段。仅版本或冲突警告不一定将它设为 false。
+- clone 进度：stderr JSON 行，包含 `event: progress` 与 `stage`。
+- JSON 状态：`running`、`stopped`、`helpers_running`、`conflict`；列表遇到进程检查错误时可能报告 `unknown`。`pids` 只包含主进程 ID，`helpers_running` 也不例外。
+
+通过 Finder 启动 Harbor 不会读取终端 shell 配置。仅在终端导出的环境值不会自动提供给其启动的实例。详见[路由与环境变量](ARCHITECTURE.md#environment)。

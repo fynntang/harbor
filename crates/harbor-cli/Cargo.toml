@@ -1,0 +1,21 @@
+[package]
+name = "harbor-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "harbor"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+harbor-core.workspace = true
+libc.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
