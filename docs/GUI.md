@@ -105,10 +105,10 @@ For free preview distribution without a Developer ID certificate, use the explic
 ./scripts/build_and_run.sh --release-adhoc
 mkdir -p dist/artifacts
 ditto -c -k --sequesterRsrc --keepParent dist/release-adhoc/Harbor.app dist/artifacts/Harbor-0.0.1-macos-arm64.zip
-(cd dist/artifacts && shasum -a 256 Harbor-0.0.1-macos-arm64.zip > SHA256SUMS.txt)
+python3 scripts/package_dmg.py dist/release-adhoc/Harbor.app
 ```
 
-Download the ZIP and checksum from the project's GitHub Release, verify the checksum, extract it and move the whole Harbor.app to Applications. Install the official ChatGPT/Codex app separately. If macOS blocks first launch because the publisher cannot be verified, follow [Apple's instructions](https://support.apple.com/en-us/102445) only after confirming the download's source. No global Gatekeeper changes are required. Installation on another Mac has not yet been verified.
+Download the DMG and checksum from the project's GitHub Release. Verify the DMG checksum, open it and drag Harbor.app into the Applications shortcut, then eject the disk and launch Harbor from Applications. Quit Harbor before replacing an installed version. ZIP remains available as an alternative. The packaging script builds a compressed read-only DMG, mounts it to verify signatures and compare every app file with the input release, then updates `SHA256SUMS.txt` for the ZIP (if present) and DMG. It neither rebuilds nor re-signs the app. If you downloaded only one format, compare its hash with the corresponding line in the checksum file. Install the official ChatGPT/Codex app separately. If macOS blocks first launch because the publisher cannot be verified, follow [Apple's instructions](https://support.apple.com/en-us/102445) only after confirming the download's source. No global Gatekeeper changes are required. Installation on another Mac has not yet been verified.
 
 For Developer ID signing, follow the separate path below.
 

@@ -26,5 +26,6 @@ jobs:
           swift test --package-path apps/Harbor --scratch-path target/swift-harbor
           ./scripts/build_and_run.sh --build-only
           ./scripts/build_and_run.sh --release-adhoc
+          python3 scripts/package_dmg.py dist/release-adhoc/Harbor.app
       # This job does not contain ChatGPT, accounts or vendor app bundles.
       # Its green result would not prove actual macOS GUI/account isolation.

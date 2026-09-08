@@ -105,10 +105,10 @@ dist/Harbor.app/Contents/Helpers/harbor remove work --yes
 ./scripts/build_and_run.sh --release-adhoc
 mkdir -p dist/artifacts
 ditto -c -k --sequesterRsrc --keepParent dist/release-adhoc/Harbor.app dist/artifacts/Harbor-0.0.1-macos-arm64.zip
-(cd dist/artifacts && shasum -a 256 Harbor-0.0.1-macos-arm64.zip > SHA256SUMS.txt)
+python3 scripts/package_dmg.py dist/release-adhoc/Harbor.app
 ```
 
-从项目 GitHub Release 下载 ZIP 和校验文件，核对校验值后解压，把完整 Harbor.app 移入“应用程序”。另行安装官方 ChatGPT/Codex 应用。若首次打开因无法验证发布者而被拦截，确认下载来源后按 [Apple 官方说明](https://support.apple.com/en-us/102445) 操作，无需全局关闭 Gatekeeper。尚未在另一台 Mac 上完成安装验收。
+从项目 GitHub Release 下载 DMG 和校验文件，核对 DMG 校验值后打开，将 Harbor.app 拖入 Applications 入口，推出磁盘后从“应用程序”启动 Harbor。覆盖安装前请退出 Harbor。ZIP 继续作为备选。打包脚本生成压缩只读 DMG，挂载后验证签名、逐个比对应用文件与输入发布版一致，再更新包含 ZIP（若存在）和 DMG 的 `SHA256SUMS.txt`；不重新构建或签名应用。若只下载一种格式，对照校验文件中的相应行核对即可。另行安装官方 ChatGPT/Codex 应用。若首次打开因无法验证发布者而被拦截，确认下载来源后按 [Apple 官方说明](https://support.apple.com/en-us/102445) 操作，无需全局关闭 Gatekeeper。尚未在另一台 Mac 上完成安装验收。
 
 Developer ID 签名继续使用下面的独立流程。
 

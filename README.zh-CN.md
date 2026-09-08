@@ -152,6 +152,6 @@ swift test --package-path apps/Harbor --scratch-path target/swift-harbor
 
 CLI、核心包和 GUI 应用版本统一为 `0.0.1`。GUI 打包从 Cargo metadata 读取 CLI 包版本，macOS 独立构建号为 `1`。包元数据声明 MIT 许可。本地 ad-hoc 打包不等于经过公证的发行版。[测试记录](docs/zh-CN/TESTING.md)区分当前检查、历史客户端实验，以及待完成的账号/GUI 验收。`SOURCE_CHECKS.txt` 是历史快照，不是当前验收证据。
 
-macOS 14+ Apple Silicon 预览版可从 [GitHub Releases](https://github.com/fynntang/harbor/releases) 下载，使用 Release 编译与本地 ad-hoc 签名，未经 Apple 公证。安装、免费分发及独立的 Developer ID 流程见[发布构建与签名](docs/zh-CN/GUI.md#release-build)。
+macOS 14+ Apple Silicon 预览版可从 [GitHub Releases](https://github.com/fynntang/harbor/releases) 下载 DMG，打开后将 Harbor.app 拖入 Applications 即可安装；也保留 ZIP 格式。应用使用 Release 编译与本地 ad-hoc 签名，未经 Apple 公证。安装、免费分发及独立的 Developer ID 流程见[发布构建与签名](docs/zh-CN/GUI.md#release-build)。
 
 GUI 支持基于官方图标生成彩色名称角标及单色菜单栏简称。创建时可预览角标；已有副本停止后可通过 **更换图标 → 原版加角标** 应用。
