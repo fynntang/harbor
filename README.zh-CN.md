@@ -57,7 +57,7 @@ harbor status work
 └── retained/                 # created when removal keeps data
 ```
 
-副本 Bundle ID 为 `com.openai.codex.harbor.work`。`launch.log` 在启动时生成。`--root` 改变注册与数据根目录，不改变默认应用目标。实例名称为 1–48 个 ASCII 小写字母、数字或连字符，并以字母或数字开头。
+副本 Bundle ID 为 `com.openai.codex.harbor.work`。`launch.log` 在启动时生成。`--root` 改变注册与数据根目录，不改变默认应用目标。显示名称为 1–48 个 Unicode 字符，支持大小写、中文、空格和括号，不允许控制字符或首尾空白。Harbor 自动生成独立、固定的小写标识：`Toobit` 转为 `toobit`；其他名称使用 ASCII 前缀（或 `profile`）加随机后缀。Bundle ID、应用文件名和数据目录均使用该标识。仅 ASCII 字母大小写不同的显示名称不能同时存在。`clone`/`create`/`adopt` 接收显示名称；后续 CLI 命令使用创建结果或 `list` 显示的标识（含空格的名称需加引号）。旧实例的标识和数据路径保持不变。
 
 ## 登记已有副本
 

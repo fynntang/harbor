@@ -25,7 +25,7 @@ Codex's Run action points to this script. An isolated registry can be selected w
 ./scripts/build_and_run.sh --verify --registry /absolute/path/test-registry
 ```
 
-A mode is required before `--registry`. The GUI shows the registry path and warns for `/tmp` or `/private/tmp`. The default clone destination remains `~/Applications/Harbor/ChatGPT-<name>.app`; changing the registry alone does not redirect application copies. Temporary data is unsuitable for persistent accounts; there is no automatic migration button.
+A mode is required before `--registry`. The GUI shows the registry path and warns for `/tmp` or `/private/tmp`. The default clone destination remains `~/Applications/Harbor/ChatGPT-<identifier>.app`; changing the registry alone does not redirect application copies. Temporary data is unsuitable for persistent accounts; there is no automatic migration button.
 
 ## Controls and state
 
@@ -65,7 +65,7 @@ The operation replaces supported Dock/Finder resources and optional 18/36-pixel 
 
 The native helper has a 15-second budget for macOS registration/readiness, sending a normal quit request and observing exit. Rust then waits up to five seconds for helpers under the app, `codex_home` and `gui_home`. Known orphan Crashpad, Computer Use and modifier-monitor executables may receive SIGTERM after owner, parent and birth-time checks. Unknown or active helpers prevent completion; there is no SIGKILL fallback. Failure or timeout stops GUI deletion.
 
-Deletion defaults to retaining the entire Profile directory under `<root>/retained/<name>-<random>/profile` and moving only the app to system Trash. The registration disappears from the list and the retained path is shown. Selecting **同时将账号数据移到废纸篓** also trashes the whole Profile directory, including metadata, logs and data. Harbor never empties Trash.
+Deletion defaults to retaining the entire Profile directory under `<root>/retained/<identifier>-<random>/profile` and moving only the app to system Trash. The registration disappears from the list and the retained path is shown. Selecting **同时将账号数据移到废纸篓** also trashes the whole Profile directory, including metadata, logs and data. Harbor never empties Trash.
 
 Deletion requires `adopted_data=false`, the expected Harbor Bundle ID and data paths exactly equal to the profile's own `codex`/`gui`. It refuses running processes, default-data overlap, registry overlap and overlap with other instances. Current paths (including the working directory) and app identity must still validate; a missing app/directory can prevent removal. It is not a general broken-registration cleanup tool. A version difference alone does not block lifecycle actions as it blocks start/icon.
 
@@ -120,3 +120,7 @@ For an existing stopped instance, choose **Change Icon… → Original with Badg
 New clones preserve `Contents/Resources/harbor-original-icon.png` before their local signature is created. Subsequent icon changes keep that file intact and always render from it. For older copies without that snapshot, the GUI reads `/Applications/ChatGPT.app/Contents/Resources/icon-chatgpt.png`, never the copy’s already-customized icon. If the original cannot be read, badge mode is unavailable; creation can disable the badge or select the correct official source, and existing copies can use Custom Image.
 
 GUI creation performs `clone` followed by `icon`; these are separate operations. If icon application fails after cloning, the created instance remains in the list, the creation sheet closes, and an error is shown. Retry through Change Icon rather than cloning again. The CLI preserves the original image when cloning but does not generate badges automatically. No account data is modified by a badge change.
+
+## Display names and identifiers
+
+The creation form accepts 1–48 Unicode characters, including Chinese, uppercase/lowercase letters, spaces and parentheses, without control characters or surrounding whitespace. The full display name appears in the list, details, confirmation dialogs and generated badges. The details show the separate instance identifier and Bundle ID. ASCII names matching the old letter/digit/hyphen syntax become lowercase identifiers; other names receive an ASCII prefix (or `profile`) and a random suffix. The identifier is fixed at creation and used for app filenames, data paths and CLI operations. Existing profiles fall back to their original name; their paths and Bundle IDs are not rewritten. Renaming existing instances is not part of this feature.

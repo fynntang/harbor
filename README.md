@@ -57,7 +57,7 @@ Default locations:
 └── retained/                 # created when removal keeps data
 ```
 
-The copy uses Bundle ID `com.openai.codex.harbor.work`. `launch.log` appears when launched. `--root` changes the registry/data root, not the default application destination. Profile names contain 1–48 lowercase ASCII letters, digits or hyphens, and start with a letter or digit.
+The copy uses Bundle ID `com.openai.codex.harbor.work`. `launch.log` appears when launched. `--root` changes the registry/data root, not the default application destination. Display names contain 1–48 Unicode characters, including uppercase/lowercase letters, Chinese, spaces and parentheses; control characters and surrounding whitespace are rejected. Harbor generates a separate stable lowercase identifier: `Toobit` becomes `toobit`; other names use an ASCII prefix (or `profile`) plus a random suffix. The identifier is used in the Bundle ID, application filename and data directories. Display names that differ only in ASCII letter case cannot coexist. `clone`/`create`/`adopt` take the display name; subsequent CLI commands take the identifier reported by `list`/creation (quote names containing spaces). Existing registrations keep their identities and data paths.
 
 ## Register an existing copy
 

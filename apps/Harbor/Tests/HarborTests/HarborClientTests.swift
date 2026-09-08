@@ -54,9 +54,16 @@ final class HarborClientTests: XCTestCase, @unchecked Sendable {
     } catch { XCTAssertTrue(error.localizedDescription.contains("内置命令行组件")) }
   }
 
+  func testLegacyProfileUsesIdentifierAsDisplayName() throws {
+    let json = Data(#"{"name":"work","bundle_id":"com.openai.codex.harbor.work","adopted_data":false,"app_bundle":"/test/Work.app","registered_app_version":"1","codex_home":"/test/codex","gui_home":"/test/gui"}"#.utf8)
+    let profile = try JSONDecoder().decode(Profile.self, from: json)
+    XCTAssertEqual(profile.displayName, "work")
+    XCTAssertTrue(profile.supportsCustomIcon)
+  }
+
   func testNamesFollowCoreContract() {
-    for name in ["work", "work-2", "0"] { XCTAssertTrue(validProfileName(name)) }
-    for name in ["", "../work", "Work", "a_b", "a b", "a\n", String(repeating: "a", count: 49)] {
+    for name in ["work", "work-2", "0", "Work", "工作", "工作账号（Toobit）", "Work (Team A)", "a_b", "../work", "-Work", String(repeating: "中", count: 48)] { XCTAssertTrue(validProfileName(name)) }
+    for name in ["", " ", " work", "work ", "a\n", "a\0b", "a\u{85}b", String(repeating: "中", count: 49)] {
       XCTAssertFalse(validProfileName(name), name)
     }
   }

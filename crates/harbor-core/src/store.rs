@@ -130,6 +130,9 @@ impl Store {
         cwd: Option<&Path>,
         pass_env: Vec<String>,
     ) -> Result<Profile> {
+        let display_name = name;
+        let identifier = model::identifier_for_display_name(display_name)?;
+        let name = identifier.as_str();
         let dir = self.profile_dir(name)?;
         let _guard = fsutil::lock_registry(&self.root)?;
         ensure!(
@@ -147,6 +150,7 @@ impl Store {
         let profile = Profile {
             schema_version: SCHEMA_VERSION,
             name: name.to_string(),
+            display_name: Some(display_name.into()),
             app_bundle: info.bundle,
             executable: info.executable,
             bundle_id: info.bundle_id,

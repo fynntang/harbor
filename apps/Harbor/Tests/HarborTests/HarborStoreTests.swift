@@ -22,6 +22,21 @@ final class HarborStoreTests: XCTestCase, @unchecked Sendable {
   }
 
   @MainActor
+  func testDisplayNameIsSentLiterallyWhileActionsUseIdentifier() async throws {
+    let fixture = try Fixture()
+    defer { fixture.remove() }
+    let store = HarborStore(client: HarborClient(executable: fixture.cli))
+    await store.create(name: "-工作账号（Toobit）", source: "/Applications/Original.app")
+    XCTAssertNil(store.error)
+    XCTAssertEqual(try String(contentsOf: fixture.dir.appendingPathComponent("submitted-name"), encoding: .utf8), "-工作账号（Toobit）")
+    XCTAssertEqual(store.selection, "work")
+    XCTAssertEqual(store.selected?.profile.displayName, "工作账号（Toobit）")
+    XCTAssertEqual(store.selected?.profile.supportsCustomIcon, true)
+    await store.start()
+    XCTAssertNil(store.error)
+  }
+
+  @MainActor
   func testIconFailureKeepsCreatedProfileWithoutOfferingDuplicateCreation() async throws {
     let fixture = try Fixture()
     defer { fixture.remove() }
@@ -124,13 +139,16 @@ private struct Fixture {
     let script = #"""
       #!/bin/sh
       cd "$(dirname "$0")" || exit 2
-      profile='{"name":"work","app_bundle":"/test/Work.app","registered_app_version":"1","registered_app_build_version":"1","codex_home":"/test/codex","gui_home":"/test/gui"}'
+      profile='{"name":"work","display_name":"工作账号（Toobit）","bundle_id":"com.openai.codex.harbor.work","adopted_data":false,"app_bundle":"/test/Work.app","registered_app_version":"1","registered_app_build_version":"1","codex_home":"/test/codex","gui_home":"/test/gui"}'
       case "$2" in
         clone)
           if [ -f fail ]; then
             printf '{"api_version":1,"ok":false,"error":"Target already exists"}\n'
             exit 1
           fi
+          test "$3" = --source || exit 3
+          test "$5" = -- || exit 4
+          printf %s "$6" > submitted-name
           touch created
           printf '{"api_version":1,"ok":true,"data":{"profile":%s}}\n' "$profile"
           ;;
@@ -144,6 +162,7 @@ private struct Fixture {
           fi
           ;;
         start)
+          test "$3" = work || exit 5
           state=started
           if [ -f started ]; then state=already_running; fi
           touch started

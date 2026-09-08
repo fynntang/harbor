@@ -219,6 +219,31 @@ mod tests {
         }
     }
     #[test]
+    fn removal_uses_identifier_not_display_text() {
+        let mut f = Fixture::new();
+        f.profile.display_name = Some("工作账号（Toobit） / Team A".into());
+        fs::write(
+            f.store.profile_dir("work").unwrap().join("profile.json"),
+            serde_json::to_vec(&f.profile).unwrap(),
+        )
+        .unwrap();
+        let result = remove_with(
+            &f.store,
+            "work",
+            false,
+            |_| Ok(()),
+            |paths| f.fake_trash(paths),
+        )
+        .unwrap();
+        let retained = result.retained_data.unwrap();
+        assert_eq!(
+            fs::read(retained.join("codex/sentinel")).unwrap(),
+            b"test account data"
+        );
+        assert!(f.store.list().unwrap().is_empty());
+    }
+
+    #[test]
     fn removal_retains_accounts_by_default_and_unregisters() {
         let f = Fixture::new();
         let original = fs::read(f.store.profile_dir("work").unwrap().join("profile.json")).unwrap();

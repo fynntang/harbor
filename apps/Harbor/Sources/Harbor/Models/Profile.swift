@@ -2,6 +2,8 @@ import Foundation
 
 struct Profile: Decodable, Sendable {
   let name: String
+  let display_name: String?
+  var displayName: String { display_name ?? name }
   let bundle_id: String?
   let adopted_data: Bool?
 
@@ -73,5 +75,7 @@ struct CLIError: LocalizedError {
 }
 
 func validProfileName(_ name: String) -> Bool {
-  name.range(of: "\\A[a-z0-9][a-z0-9-]{0,47}\\z", options: .regularExpression) != nil
+  !name.isEmpty && name.unicodeScalars.count <= 48
+    && name.trimmingCharacters(in: .whitespacesAndNewlines) == name
+    && !name.unicodeScalars.contains { $0.value < 32 || (127...159).contains($0.value) }
 }

@@ -13,7 +13,7 @@ struct DetailView: View {
           ProfileIconView(appPath: item.profile.app_bundle, revision: store.iconRevision).frame(
             width: 56, height: 56)
           VStack(alignment: .leading, spacing: 5) {
-            Text(item.id).font(.largeTitle.bold())
+            Text(item.profile.displayName).font(.largeTitle.bold())
             Text(store.text(key: item.status.title)).foregroundStyle(
               item.status.state == "running" ? .green : .secondary)
           }
@@ -32,6 +32,8 @@ struct DetailView: View {
         }
         GroupBox(store.text("应用")) {
           VStack(alignment: .leading, spacing: 12) {
+            LabeledContent(store.text("实例标识"), value: item.id)
+            LabeledContent("Bundle ID", value: item.profile.bundle_id ?? "—")
             LabeledContent(store.text("当前版本"), value: version)
             LabeledContent(
               store.text("登记版本"),

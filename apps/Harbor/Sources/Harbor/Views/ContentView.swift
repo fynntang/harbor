@@ -20,7 +20,7 @@ struct ContentView: View {
           ForEach(store.profiles) { item in
             Label {
               VStack(alignment: .leading, spacing: 3) {
-                Text(item.id).fontWeight(.medium)
+                Text(item.profile.displayName).fontWeight(.medium)
                 Text(item.issue == nil ? store.text(key: item.status.title) : store.text("需要检查"))
                   .font(.caption).foregroundStyle(.secondary)
               }

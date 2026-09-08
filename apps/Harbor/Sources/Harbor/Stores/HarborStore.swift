@@ -54,7 +54,7 @@ final class HarborStore {
     report = nil
     defer { busy = false }
     do {
-      let result: CreatedProfile = try await client.request(["clone", name, "--source", source]) {
+      let result: CreatedProfile = try await client.request(["clone", "--source", source, "--", name]) {
         [weak self] stage in
         Task { @MainActor in self?.activity = Self.stageTitle(stage) }
       }

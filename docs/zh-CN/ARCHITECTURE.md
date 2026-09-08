@@ -30,6 +30,8 @@ GUI 调用内置 CLI，不重新实现核心策略。原生 helper 从 CLI 可�
 
 即使磁盘区分大小写，也会保守保留 ASCII 大小写变体。实际路径必须仍解析到登记的位置。Profile 清单使用 schema 版本 `1`，拒绝未知字段。旧清单可以缺少登记构建号，但正常启动随后需要明确审查/例外。
 
+清单中的 `name` 是固定注册标识，可选字段 `display_name` 保存面向用户的 Unicode 文本；缺少该字段时回退为 `name`，兼容旧实例。新登记生成小写标识，沿用原 ASCII 语法或使用 ASCII 前缀加 64 位随机后缀。显示文本不参与路径或 Bundle ID。标识和显示名称都保留 ASCII 大小写变体；clone 的 Bundle ID 为 `com.openai.codex.harbor.<identifier>`。`create`/`adopt` 登记的已准备应用保留原 Bundle ID。
+
 Profile 记录应用/可执行路径/ID、短版本/构建号、两个数据路径、工作目录、额外环境变量名称和 `adopted_data`，不存环境值。Codex/GUI 路径不能互相重叠或与应用重叠；其他 Profile 不能复用相同应用路径/ID 或冲突的数据。`adopt` 要求数据已存在且位于 `profiles` 注册目录外；`create` 为准备好的应用分配空数据。两者均不签名或修改应用。
 
 新 Harbor 目录/文件使用私有权限（通常为 0700/0600，可执行快捷入口为 0700），不递归 chmod 既有账号树。登记使用私有锁和不覆盖式清单提交。`RegistryLock` 在 drop 中先显式解锁再关闭句柄，避免并发继承的句柄延长锁持有时间。`create`/`adopt` 初始化不完整时保留现场，不递归删除。

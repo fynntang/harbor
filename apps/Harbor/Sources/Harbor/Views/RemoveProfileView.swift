@@ -8,7 +8,7 @@ struct RemoveProfileView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 18) {
-      Text(store.text("删除实例 \(item.id)？")).font(.title2.bold())
+      Text(store.text("删除实例 \(item.profile.displayName)？")).font(.title2.bold())
       Text(store.text("应用副本会移到系统废纸篓，并从 Harbor 列表中移除。"))
       Text(item.profile.app_bundle).font(.caption).textSelection(.enabled)
       if item.status.state != "stopped" {

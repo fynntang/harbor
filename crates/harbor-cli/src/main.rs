@@ -24,7 +24,7 @@ struct Cli {
 
 #[derive(Args)]
 struct InstanceArgs {
-    /// Lowercase profile name, e.g. work or personal.
+    /// Display name; quote names containing spaces. A lowercase identifier is generated.
     name: String,
     /// Existing, already-prepared .app bundle. Harbor never modifies it.
     #[arg(long)]
@@ -45,7 +45,7 @@ enum Commands {
         /// Original OpenAI-signed app (for example /Applications/ChatGPT.app).
         #[arg(long)]
         source: PathBuf,
-        /// New app path (default: ~/Applications/Harbor/ChatGPT-<name>.app).
+        /// New app path (default: ~/Applications/Harbor/ChatGPT-<identifier>.app).
         #[arg(long)]
         app: Option<PathBuf>,
         #[arg(long)]
@@ -156,7 +156,7 @@ fn run(cli: Cli) -> Result<()> {
                 cwd.as_deref(),
                 pass_env,
             )?;
-            println!("Created local copy and empty profile '{}'. Source app and existing accounts were not modified.", p.name);
+            println!("Created local copy and empty profile '{}'. Source app and existing accounts were not modified.", p.display_name());
             show_routes(&p);
             println!("The copy is locally ad-hoc signed; it does not retain the vendor identity or notarization.\nStart with: harbor --root {} start {}\nSign in to the intended account in its new window.", fsutil::shell_quote(store.root.to_str().context("Non-UTF-8 registry path")?), fsutil::shell_quote(&p.name));
         }
@@ -175,7 +175,10 @@ fn run(cli: Cli) -> Result<()> {
                 instance.cwd.as_deref(),
                 instance.pass_env,
             )?;
-            println!("Created profile '{}'. App bundle was not modified.", p.name);
+            println!(
+                "Created profile '{}'. App bundle was not modified.",
+                p.display_name()
+            );
             show_routes(&p);
         }
         Commands::Adopt {
@@ -205,7 +208,13 @@ fn run(cli: Cli) -> Result<()> {
                 );
             }
             for p in profiles {
-                println!("{}\t{}\t{}", p.name, p.bundle_id, p.app_bundle.display());
+                println!(
+                    "{}\t{}\t{}\t{}",
+                    p.name,
+                    p.display_name(),
+                    p.bundle_id,
+                    p.app_bundle.display()
+                );
             }
         }
         Commands::Show { name } => {
@@ -284,6 +293,7 @@ fn run(cli: Cli) -> Result<()> {
 }
 
 fn show_routes(p: &Profile) {
+    println!("Name: {}\nIdentifier: {}", p.display_name(), p.name);
     println!("App:        {}\nExecutable: {}\nBundle ID:  {}\nCodex home: {}\nGUI home:   {}\nWorking dir: {}",
         p.app_bundle.display(), p.executable.display(), p.bundle_id,
         p.codex_home.display(), p.gui_home.display(), p.working_directory.display());

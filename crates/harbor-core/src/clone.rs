@@ -60,7 +60,9 @@ fn clone_with(
     pass_env: Vec<String>,
     prepare: impl FnOnce(&AppInfo, &Path, &Profile) -> Result<()>,
 ) -> Result<Profile> {
-    model::validate_name(name)?;
+    let display_name = name;
+    let identifier = model::identifier_for_display_name(display_name)?;
+    let name = identifier.as_str();
     for key in &pass_env {
         environment::validate_extra_key(key)?;
     }
@@ -100,6 +102,7 @@ fn clone_with(
     let profile = Profile {
         schema_version: SCHEMA_VERSION,
         name: name.into(),
+        display_name: Some(display_name.into()),
         app_bundle: destination.clone(),
         executable: destination.join("Contents/MacOS").join(
             original
@@ -400,8 +403,14 @@ fn patch_info(app: &Path, profile: &Profile) -> Result<()> {
     for (key, text) in [
         ("CFBundleIdentifier", profile.bundle_id.clone()),
         ("CrProductDirName", profile.bundle_id.clone()),
-        ("CFBundleName", format!("ChatGPT ({})", profile.name)),
-        ("CFBundleDisplayName", format!("ChatGPT ({})", profile.name)),
+        (
+            "CFBundleName",
+            format!("ChatGPT ({})", profile.display_name()),
+        ),
+        (
+            "CFBundleDisplayName",
+            format!("ChatGPT ({})", profile.display_name()),
+        ),
     ] {
         dict.insert(key.into(), plist::Value::String(text));
     }
@@ -557,6 +566,87 @@ mod tests {
         )?;
         fs::copy(&source.executable, stage.join("Contents/MacOS/ChatGPT"))?;
         patch_info(stage, profile)
+    }
+
+    #[test]
+    fn uppercase_name_is_preserved_and_case_aliases_are_rejected() {
+        let f = Fixture::new();
+        let p = clone_with(
+            &f.store,
+            "Toobit",
+            &f.source,
+            None,
+            None,
+            vec![],
+            fake_prepare,
+        )
+        .unwrap();
+        assert_eq!(p.name, "toobit");
+        assert_eq!(p.display_name(), "Toobit");
+        assert_eq!(p.bundle_id, "com.openai.codex.harbor.toobit");
+        assert_eq!(p.app_bundle.file_name().unwrap(), "ChatGPT-toobit.app");
+        assert_eq!(f.store.load("toobit").unwrap().display_name(), "Toobit");
+        assert_eq!(f.store.list().unwrap().len(), 1);
+        assert!(f.store.load("Toobit").is_err());
+        // Exercise the conflict check independently of filesystem case sensitivity.
+        let mut alias = p.clone();
+        alias.app_bundle = f.destination.clone();
+        alias.codex_home = f.store.root.join("other-codex");
+        alias.gui_home = f.store.root.join("other-gui");
+        alias.name = "toobit".into();
+        alias.bundle_id = "other.identity".into();
+        assert!(model::ensure_no_conflict(&alias, std::slice::from_ref(&p)).is_err());
+        alias.name = "other".into();
+        alias.display_name = Some("Other".into());
+        alias.bundle_id = p.bundle_id.to_ascii_uppercase();
+        assert!(model::ensure_no_conflict(&alias, std::slice::from_ref(&p)).is_err());
+        assert!(clone_with(
+            &f.store,
+            "toobit",
+            &f.source,
+            Some(&f.destination),
+            None,
+            vec![],
+            |_, _, _| panic!("conflicting clone must not reach preparation"),
+        )
+        .is_err());
+        assert!(!f.destination.exists());
+        assert_eq!(f.store.list().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn display_name_is_separate_from_paths_and_bundle_identity() {
+        let f = Fixture::new();
+        let label = "工作账号（Toobit） / Team A";
+        let p = clone_with(&f.store, label, &f.source, None, None, vec![], fake_prepare).unwrap();
+        assert_eq!(p.display_name(), label);
+        assert!(p.name.starts_with("toobit-team-a-"));
+        assert_eq!(p.name, p.name.to_ascii_lowercase());
+        model::validate_name(&p.name).unwrap();
+        assert_eq!(p.bundle_id, format!("com.openai.codex.harbor.{}", p.name));
+        assert_eq!(
+            p.codex_home,
+            f.store.profile_dir(&p.name).unwrap().join("codex")
+        );
+        let info = plist::Value::from_file(p.app_bundle.join("Contents/Info.plist")).unwrap();
+        let info = info.as_dictionary().unwrap();
+        assert_eq!(
+            info["CFBundleDisplayName"].as_string(),
+            Some(format!("ChatGPT ({label})").as_str())
+        );
+        assert_eq!(f.store.load(&p.name).unwrap().display_name(), label);
+        assert!(clone_with(
+            &f.store,
+            label,
+            &f.source,
+            Some(&f.destination),
+            None,
+            vec![],
+            |_, _, _| panic!("duplicate display name must not be prepared")
+        )
+        .is_err());
+        assert!(!f.destination.exists());
+        assert_eq!(f.store.list().unwrap().len(), 1);
     }
 
     #[test]

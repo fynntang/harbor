@@ -25,7 +25,7 @@ Codex Run 指向同一个脚本。可以指定独立 registry：
 ./scripts/build_and_run.sh --verify --registry /absolute/path/test-registry
 ```
 
-`--registry` 前必须提供模式。GUI 显示 registry 路径，对 `/tmp` 或 `/private/tmp` 显示警告。副本默认目标仍为 `~/Applications/Harbor/ChatGPT-<name>.app`，只改变 registry 不会改变应用副本位置。临时数据不适合持久账号；没有自动迁移按钮。
+`--registry` 前必须提供模式。GUI 显示 registry 路径，对 `/tmp` 或 `/private/tmp` 显示警告。副本默认目标仍为 `~/Applications/Harbor/ChatGPT-<identifier>.app`，只改变 registry 不会改变应用副本位置。临时数据不适合持久账号；没有自动迁移按钮。
 
 ## 控件与状态
 
@@ -65,7 +65,7 @@ GUI 在报告残留辅助进程时禁用图标更新。核心 `icon` 命令在�
 
 原生 helper 对 macOS 登记/就绪、发送正常退出请求和观察退出共设置 15 秒时限。之后 Rust 最多再等待五秒，检查 app、`codex_home`、`gui_home` 中的辅助进程。已知路径的孤儿 Crashpad、Computer Use 和快捷键监视程序，在核对属主、父进程及启动时间后可能收到 SIGTERM。未知或仍有活动父进程的 helper 会阻止完成，不回退到 SIGKILL。失败或超时会阻止 GUI 删除。
 
-删除默认将整个 Profile 目录保留到 `<root>/retained/<name>-<random>/profile`，仅将应用移到系统废纸篓。登记会从列表移除，界面显示保留路径。勾选**同时将账号数据移到废纸篓**会把整个 Profile 目录也移走，包括元数据、日志和数据。Harbor 不清空废纸篓。
+删除默认将整个 Profile 目录保留到 `<root>/retained/<identifier>-<random>/profile`，仅将应用移到系统废纸篓。登记会从列表移除，界面显示保留路径。勾选**同时将账号数据移到废纸篓**会把整个 Profile 目录也移走，包括元数据、日志和数据。Harbor 不清空废纸篓。
 
 删除要求 `adopted_data=false`、预期的 Harbor Bundle ID，且数据路径必须正好是该 Profile 自己的 `codex`/`gui`。运行中的进程、默认数据重叠、registry 重叠及其他实例路径重叠都会被拒绝。当前路径（包括工作目录）和应用身份仍须通过检查，应用或目录缺失可能阻止删除。这不是通用的损坏登记清理工具。与 start/icon 不同，仅版本差异不会阻止生命周期操作。
 
@@ -120,3 +120,7 @@ HARBOR_SIGNING_IDENTITY=YOUR_CERTIFICATE_SHA1 ./scripts/build_and_run.sh --relea
 新副本会在本地签名前保存 `Contents/Resources/harbor-original-icon.png`，后续换图标保留该文件并始终从它重新绘制。没有该快照的旧副本，GUI 读取 `/Applications/ChatGPT.app/Contents/Resources/icon-chatgpt.png`，不会使用副本中已经自定义过的图标。原图无法读取时角标模式不可用；创建时可以关闭角标或重新选择正确的官方原版，已有实例可以使用自选图片。
 
 GUI 创建流程依次执行 `clone` 和 `icon`，两者为独立操作。如果克隆成功后图标应用失败，已创建实例仍保留在列表中，创建窗口关闭并显示错误。应通过更换图标重试，避免重复克隆。CLI 克隆会保留原图，但不会自动生成角标。更换角标不修改账号数据。
+
+## 显示名称与实例标识
+
+创建表单支持 1–48 个 Unicode 字符，包括中文、大小写、空格和括号，不允许控制字符或首尾空白。列表、详情、确认对话框及生成角标使用完整显示名称；详情另外显示实例标识和 Bundle ID。符合原字母/数字/连字符规则的 ASCII 名称转成小写标识；其他名称使用 ASCII 前缀（或 `profile`）加随机后缀。标识在创建时固定，用于应用文件名、数据路径和 CLI 操作。旧实例回退使用原名称，不改写其路径或 Bundle ID。本功能不包含已有实例重命名。

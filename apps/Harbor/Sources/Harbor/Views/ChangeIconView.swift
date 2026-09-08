@@ -20,14 +20,14 @@ struct ChangeIconView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 20) {
-      Text(store.text("更换 \(item.id) 的图标")).font(.title2.bold())
+      Text(store.text("更换 \(item.profile.displayName) 的图标")).font(.title2.bold())
       Picker(store.text("图标样式"), selection: $useBadge) {
         Text(store.text("原版加角标")).tag(true)
         Text(store.text("自选图片")).tag(false)
       }.pickerStyle(.segmented).disabled(store.busy)
       if useBadge {
         BadgeEditor(
-          store: store, name: item.id,
+          store: store, name: item.profile.displayName,
           originalURL: IconImage.originalURL(for: item.profile.app_bundle),
           settings: $badge, image: $badgeImage, trayPNG: $badgeTray)
       } else {
@@ -93,7 +93,7 @@ struct ChangeIconView: View {
     .onAppear {
       store.error = nil
       badge = BadgeSettings.load(for: item.profile.app_bundle)
-      do { letterPNG = try IconImage.menuBarLetter(item.id) } catch {
+      do { letterPNG = try IconImage.menuBarLetter(item.profile.displayName) } catch {
         self.error = GUIMessage(error: error)
       }
     }

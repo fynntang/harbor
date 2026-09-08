@@ -20,7 +20,7 @@ struct CreateProfileView: View {
       Form {
         TextField(store.text("实例名称"), text: $name, prompt: Text(store.text("例如 work")))
           .accessibilityIdentifier("profile-name")
-        Text(store.text("1–48 位小写字母、数字或连字符，以字母或数字开头。"))
+        Text(store.text("1–48 个字符，支持中文、大小写、空格和括号；首尾不能有空白。"))
           .font(.caption).foregroundStyle(.secondary)
         LabeledContent(store.text("官方原版")) {
           Text(source).lineLimit(2).truncationMode(.middle).help(source)
@@ -28,7 +28,7 @@ struct CreateProfileView: View {
         }
       }.disabled(store.busy)
       if validProfileName(name) {
-        Text(store.text("副本：~/Applications/Harbor/ChatGPT-\(name).app"))
+        Text(store.text("将自动生成小写实例标识，用于 Bundle ID 和数据目录。"))
           .font(.caption).foregroundStyle(.secondary)
       }
       Toggle(store.text("使用名称角标"), isOn: $useBadge).disabled(store.busy)

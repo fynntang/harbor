@@ -225,3 +225,30 @@ fn shortcut_is_new_file_only_and_keeps_correct_registry() {
         .shortcut("work", &output, Path::new("/bin/sh"))
         .is_err());
 }
+
+#[test]
+fn display_names_and_legacy_manifests_keep_stable_routing() {
+    let f = fixture();
+    let p = f
+        .store
+        .create("工作 (Team A)", &f.app, None, vec![])
+        .unwrap();
+    assert_eq!(p.display_name(), "工作 (Team A)");
+    assert!(p.name.starts_with("team-a-"));
+    assert_eq!(
+        f.store.load(&p.name).unwrap().display_name(),
+        p.display_name()
+    );
+    assert!(f
+        .store
+        .create("工作 (Team A)", &f.app, None, vec![])
+        .is_err());
+    let manifest = f.store.profile_dir(&p.name).unwrap().join("profile.json");
+    let mut legacy = serde_json::to_value(&p).unwrap();
+    legacy.as_object_mut().unwrap().remove("display_name");
+    fs::write(&manifest, serde_json::to_vec(&legacy).unwrap()).unwrap();
+    let loaded = f.store.load(&p.name).unwrap();
+    assert_eq!(loaded.display_name(), p.name);
+    assert_eq!(loaded.codex_home, p.codex_home);
+    assert_eq!(loaded.bundle_id, p.bundle_id);
+}

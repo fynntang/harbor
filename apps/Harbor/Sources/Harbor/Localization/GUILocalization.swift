@@ -81,8 +81,8 @@ final class GUILocalization {
   // Compiled into the executable, including SwiftPM builds and the packaged app.
   nonisolated static let english: [String: String] = [
     "%@ 个实例": "Instances: %@",
-    "1–48 位小写字母、数字或连字符，以字母或数字开头。":
-      "1–48 lowercase letters, numbers or hyphens; start with a letter or number.",
+    "1–48 个字符，支持中文、大小写、空格和括号；首尾不能有空白。":
+      "1–48 characters, including Chinese, uppercase/lowercase letters, spaces and parentheses; no surrounding whitespace.",
     "Harbor 应用缺少内置命令行组件，请重新构建或安装应用。":
       "The bundled Harbor CLI is missing. Rebuild or reinstall Harbor.",
     "Harbor 组件返回了无法识别的结果（退出码 %@），请重新构建应用。":
@@ -113,7 +113,6 @@ final class GUILocalization {
     "副本位置": "App copy",
     "副本已创建。点击“启动”，在新窗口登录工作账号。":
       "Copy created. Click Start, then sign in with your work account in the new window.",
-    "副本：~/Applications/Harbor/ChatGPT-%@.app": "Copy: ~/Applications/Harbor/ChatGPT-%@.app",
     "取消": "Cancel",
     "同时将账号数据移到废纸篓": "Also move account data to the Trash",
     "启动": "Start",
@@ -126,6 +125,8 @@ final class GUILocalization {
     "在 Finder 中显示日志目录": "Show Log Folder in Finder",
     "官方原版": "Official app",
     "实例": "Instances",
+    "实例标识": "Instance Identifier",
+    "将自动生成小写实例标识，用于 Bundle ID 和数据目录。": "A lowercase identifier will be generated for the Bundle ID and data directories.",
     "实例名称": "Instance name",
     "实例和账号数据已移到废纸篓。": "The instance and account data were moved to the Trash.",
     "实例已停止，账号数据保留。": "The instance has stopped. Account data is preserved.",

@@ -147,6 +147,7 @@ mod tests {
         let p = Profile {
             schema_version: crate::SCHEMA_VERSION,
             name: "work".into(),
+            display_name: None,
             app_bundle: root.join("Work.app"),
             executable: root.join("Work.app/Contents/MacOS/ChatGPT"),
             bundle_id: "com.openai.codex.harbor.work".into(),
