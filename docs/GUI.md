@@ -99,6 +99,19 @@ Finder-launched Harbor does not source terminal shell configuration. Environment
 
 Development commands above still produce `dist/Harbor.app` with a debug Swift GUI/native helper, a release Rust CLI and ad-hoc signatures. The separate release command compiles all three programs in release mode and produces `dist/release/Harbor.app`; it neither stops nor replaces the development app. The first release supports macOS 14+ on arm64 only.
 
+For free preview distribution without a Developer ID certificate, use the explicit ad-hoc release mode. It compiles all three programs in release mode, checks their signatures, identifiers, architectures and versions, and outputs `dist/release-adhoc/Harbor.app`. It does not query signing identities, stop the GUI or replace the Developer ID output. It is **not notarized** and does not identify a trusted publisher.
+
+```bash
+./scripts/build_and_run.sh --release-adhoc
+mkdir -p dist/artifacts
+ditto -c -k --sequesterRsrc --keepParent dist/release-adhoc/Harbor.app dist/artifacts/Harbor-0.0.1-macos-arm64.zip
+(cd dist/artifacts && shasum -a 256 Harbor-0.0.1-macos-arm64.zip > SHA256SUMS.txt)
+```
+
+Download the ZIP and checksum from the project's GitHub Release, verify the checksum, extract it and move the whole Harbor.app to Applications. Install the official ChatGPT/Codex app separately. If macOS blocks first launch because the publisher cannot be verified, follow [Apple's instructions](https://support.apple.com/en-us/102445) only after confirming the download's source. No global Gatekeeper changes are required. Installation on another Mac has not yet been verified.
+
+For Developer ID signing, follow the separate path below.
+
 Install a valid **Developer ID Application** certificate and its matching private key in the build machine’s keychain. Set `HARBOR_SIGNING_IDENTITY` to that certificate’s 40-character SHA-1 fingerprint; the fingerprint is an identifier, not a private key. Never put the private key or its password in source, command examples or release assets.
 
 ```bash
@@ -109,7 +122,7 @@ Replace the placeholder with your certificate fingerprint. Missing, malformed, u
 
 The script signs the helpers first, then Harbor.app, using the selected identity, Hardened Runtime and a secure timestamp. Before publishing the local output, `scripts/signing.py` verifies the Apple signing anchor, signatures, signing team, identifiers, runtime flags, timestamps, matching arm64 architectures and matching GUI/CLI/workspace versions. A failed check prevents replacing the previous release app. No additional entitlements are added. These signing settings apply only to Harbor and its own helpers; user-created client copies retain their existing local signing flow and never receive the publisher’s certificate/private key.
 
-**This command creates a signed app, not a notarized distribution.** Apple notarization, ticket stapling, ZIP/checksum generation, installation testing on another Mac and GitHub Release publishing remain subsequent steps. Do not label this intermediate output as notarized or Gatekeeper-accepted. Release signing is not performed by the current CI: CI tests the gates and compiles the release Swift executables without accessing signing credentials.
+**This command creates a signed app, not a notarized distribution.** Apple notarization, ticket stapling, ZIP/checksum generation, installation testing on another Mac and GitHub Release publishing remain subsequent steps. Do not label this intermediate output as notarized or Gatekeeper-accepted. Release signing is not performed by the current CI: CI tests the gates and builds/verifies the ad-hoc release without accessing signing credentials.
 
 ## Name badges on instance icons
 

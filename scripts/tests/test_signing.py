@@ -47,6 +47,13 @@ class SigningTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             signing.check_signature(details.replace("0x10000(runtime)", "0x2(adhoc)"), "TESTTEAM01", "local.harbor.desktop")
 
+    def test_adhoc_gate_requires_explicit_signature_and_identity(self):
+        valid = "Identifier=local.harbor.desktop\nSignature=adhoc\nTeamIdentifier=not set"
+        signing.check_adhoc_signature(valid, "local.harbor.desktop")
+        for invalid in [valid.replace("Signature=adhoc", ""), valid.replace("local.harbor.desktop", "other"), valid + "\nAuthority=Unexpected"]:
+            with self.assertRaises(ValueError):
+                signing.check_adhoc_signature(invalid, "local.harbor.desktop")
+
     def test_versions_and_architectures_cannot_drift(self):
         info = {"CFBundleIdentifier": "local.harbor.desktop", "CFBundleShortVersionString": "0.0.1", "LSMinimumSystemVersion": "14.0"}
         signing.check_versions(info, "0.0.1", "harbor 0.0.1\n")
@@ -57,6 +64,15 @@ class SigningTests(unittest.TestCase):
         for architectures in [["arm64", "x86_64", "arm64"], ["arm64"] * 2, ["arm64 x86_64"] * 3]:
             with self.assertRaises(ValueError):
                 signing.check_architectures(architectures)
+
+    def test_adhoc_release_rejects_launch_arguments_before_build(self):
+        result = subprocess.run(
+            ["bash", str(ROOT / "scripts/build_and_run.sh"), "--release-adhoc", "--registry", "/tmp/test"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("does not accept launch arguments", result.stderr)
+        self.assertEqual(result.stdout, "")
 
     def test_real_release_entry_stops_before_build_when_unconfigured(self):
         result = subprocess.run(

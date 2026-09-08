@@ -99,6 +99,19 @@ dist/Harbor.app/Contents/Helpers/harbor remove work --yes
 
 上面的开发命令仍生成 `dist/Harbor.app`，包含 debug Swift GUI/原生辅助程序、release Rust CLI 和 ad-hoc 签名。独立发布命令以 release 模式编译三个程序，输出到 `dist/release/Harbor.app`，不停止或替换开发版应用。首版仅支持 macOS 14+ / arm64。
 
+没有 Developer ID 证书时，可使用明确的本地签名发布模式免费分发预览版。三个程序均使用 release 编译，校验签名、标识、架构和版本，产物为 `dist/release-adhoc/Harbor.app`。此模式不查询签名身份、不停止 GUI，也不覆盖 Developer ID 产物。它**未经公证**，签名不代表受信任的发布者身份。
+
+```bash
+./scripts/build_and_run.sh --release-adhoc
+mkdir -p dist/artifacts
+ditto -c -k --sequesterRsrc --keepParent dist/release-adhoc/Harbor.app dist/artifacts/Harbor-0.0.1-macos-arm64.zip
+(cd dist/artifacts && shasum -a 256 Harbor-0.0.1-macos-arm64.zip > SHA256SUMS.txt)
+```
+
+从项目 GitHub Release 下载 ZIP 和校验文件，核对校验值后解压，把完整 Harbor.app 移入“应用程序”。另行安装官方 ChatGPT/Codex 应用。若首次打开因无法验证发布者而被拦截，确认下载来源后按 [Apple 官方说明](https://support.apple.com/en-us/102445) 操作，无需全局关闭 Gatekeeper。尚未在另一台 Mac 上完成安装验收。
+
+Developer ID 签名继续使用下面的独立流程。
+
 在构建机器的钥匙串中安装有效的 **Developer ID Application** 证书及其对应私钥。将 `HARBOR_SIGNING_IDENTITY` 设置为该证书的 40 位 SHA-1 指纹；指纹是标识符，不是私钥。私钥及其密码不得进入源码、命令示例或发布附件。
 
 ```bash
@@ -109,7 +122,7 @@ HARBOR_SIGNING_IDENTITY=YOUR_CERTIFICATE_SHA1 ./scripts/build_and_run.sh --relea
 
 脚本先签辅助程序，再签 Harbor.app，使用选定身份、Hardened Runtime 和安全时间戳。写入最终本地产物前，`scripts/signing.py` 验证 Apple 签名信任锚、签名、签名团队、标识、运行时标志、时间戳、三个程序一致的 arm64 架构及 GUI/CLI/工作区版本一致性。检查失败不会替换先前的发布版应用。不额外添加 entitlement。这些配置只用于 Harbor 自身和内置辅助程序；用户创建的客户端副本继续使用已有本地签名流程，不会获得发布者的证书或私钥。
 
-**此命令生成已签名应用，不代表已完成公证分发。** Apple 公证、票据装订、ZIP/校验文件生成、另一台 Mac 的安装验收及 GitHub Release 发布仍是后续步骤，不能将中间产物标记为已公证或已通过 Gatekeeper。当前 CI 不执行正式签名，仅测试签名门槛并编译 release Swift 程序，不访问签名凭据。
+**此命令生成已签名应用，不代表已完成公证分发。** Apple 公证、票据装订、ZIP/校验文件生成、另一台 Mac 的安装验收及 GitHub Release 发布仍是后续步骤，不能将中间产物标记为已公证或已通过 Gatekeeper。当前 CI 不执行正式签名，测试签名门槛并构建、验证本地签名发布版，不访问签名凭据。
 
 ## 实例图标的名称角标
 

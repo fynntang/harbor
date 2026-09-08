@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only gates for Harbor's Developer ID builds; never handles private keys."""
+"""Read-only gates for Harbor's distribution builds; never handles private keys."""
 import os
 import plistlib
 import re
@@ -40,7 +40,7 @@ def check_signature(details, team, identifier):
     if f"TeamIdentifier={team}" not in lines:
         raise ValueError("Release components must use the configured signing team")
     if not any(line.startswith("Authority=Developer ID Application:") for line in lines):
-        raise ValueError("A Developer ID Application signature is required; ad-hoc builds cannot be released")
+        raise ValueError("A Developer ID Application signature is required for --release-only")
     if not any(line.startswith("Timestamp=") and line.removeprefix("Timestamp=").strip() not in ("", "none") for line in lines):
         raise ValueError("A secure signing timestamp is required")
     if not any(line.startswith("CodeDirectory ") and re.search(r"flags=0x[0-9a-f]+\([^)]*\bruntime\b", line) for line in lines):
@@ -61,14 +61,26 @@ def check_architectures(architectures):
         raise ValueError("This release supports arm64 only; GUI and both helpers must all be arm64")
 
 
-def verify(bundle, version, team):
+def check_adhoc_signature(details, identifier):
+    lines = details.splitlines()
+    if f"Identifier={identifier}" not in lines or "Signature=adhoc" not in lines:
+        raise ValueError("Expected an ad-hoc signature with the correct component identifier")
+    if any(line.startswith("Authority=") for line in lines):
+        raise ValueError("Ad-hoc artifacts must not claim a signing authority")
+
+
+def verify(bundle, version, team=None):
     bundle = Path(bundle)
     contents = bundle / "Contents"
     paths = [bundle, contents / "Helpers/harbor", contents / "Helpers/harbor-native"]
     identifiers = ["local.harbor.desktop", "local.harbor.desktop.cli", "local.harbor.desktop.native"]
     for path, identifier in zip(paths, identifiers):
-        run("/usr/bin/codesign", "--verify", "--strict", "--test-requirement", "anchor apple generic", str(path))
-        check_signature(run("/usr/bin/codesign", "-dvv", str(path)), team, identifier)
+        if team is None:
+            run("/usr/bin/codesign", "--verify", "--strict", str(path))
+            check_adhoc_signature(run("/usr/bin/codesign", "-dvv", str(path)), identifier)
+        else:
+            run("/usr/bin/codesign", "--verify", "--strict", "--test-requirement", "anchor apple generic", str(path))
+            check_signature(run("/usr/bin/codesign", "-dvv", str(path)), team, identifier)
     run("/usr/bin/codesign", "--verify", "--deep", "--strict", str(bundle))
     check_architectures([run("/usr/bin/lipo", "-archs", str(path)) for path in [contents / "MacOS/Harbor", *paths[1:]]])
     with (contents / "Info.plist").open("rb") as stream:
@@ -80,8 +92,10 @@ def main():
         print(preflight())
     elif len(sys.argv) == 5 and sys.argv[1] == "verify":
         verify(*sys.argv[2:])
+    elif len(sys.argv) == 4 and sys.argv[1] == "verify-adhoc":
+        verify(*sys.argv[2:])
     else:
-        raise ValueError("usage: signing.py preflight | verify APP VERSION TEAM")
+        raise ValueError("usage: signing.py preflight | verify APP VERSION TEAM | verify-adhoc APP VERSION")
 
 
 if __name__ == "__main__":

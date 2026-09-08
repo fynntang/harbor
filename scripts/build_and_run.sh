@@ -3,25 +3,29 @@ set -euo pipefail
 MODE="${1:-run}"
 if [ "$#" -gt 0 ]; then shift; fi
 case "$MODE" in
-  run|--build-only|--release-only|--debug|--logs|--telemetry|--verify) ;;
-  *) echo "usage: $0 [run|--build-only|--release-only|--debug|--logs|--telemetry|--verify] [--registry PATH]" >&2; exit 2 ;;
+  run|--build-only|--release-only|--release-adhoc|--debug|--logs|--telemetry|--verify) ;;
+  *) echo "usage: $0 [run|--build-only|--release-only|--release-adhoc|--debug|--logs|--telemetry|--verify] [--registry PATH]" >&2; exit 2 ;;
 esac
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_BUNDLE="$ROOT_DIR/dist/Harbor.app"
 cd "$ROOT_DIR"
 SWIFT_CONFIGURATION=debug
 SIGNING_ARGS=(--force --sign -)
-if [ "$MODE" = --release-only ]; then
+if [ "$MODE" = --release-only ] || [ "$MODE" = --release-adhoc ]; then
     if [ "$#" -ne 0 ]; then
-        echo "--release-only does not accept launch arguments" >&2
+        echo "$MODE does not accept launch arguments" >&2
         exit 2
     fi
-    RELEASE_TEAM="$(python3 scripts/signing.py preflight)"
     APP_BUNDLE="$ROOT_DIR/dist/release/Harbor.app"
     SWIFT_CONFIGURATION=release
-    SIGNING_ARGS=(--force --sign "$HARBOR_SIGNING_IDENTITY" --options runtime --timestamp)
+    if [ "$MODE" = --release-only ]; then
+        RELEASE_TEAM="$(python3 scripts/signing.py preflight)"
+        SIGNING_ARGS=(--force --sign "$HARBOR_SIGNING_IDENTITY" --options runtime --timestamp)
+    else
+        APP_BUNDLE="$ROOT_DIR/dist/release-adhoc/Harbor.app"
+    fi
 fi
-if [ "$MODE" != --release-only ]; then
+if [ "$SWIFT_CONFIGURATION" = debug ]; then
 # Stop only this checkout's GUI. Refuse while its bundled CLI has an operation in flight.
 python3 - "$APP_BUNDLE" <<'PY'
 import os, signal, subprocess, sys
@@ -72,12 +76,14 @@ PLIST
 /usr/bin/codesign --verify --deep --strict "$STAGING/Harbor.app"
 if [ "$MODE" = --release-only ]; then
     python3 scripts/signing.py verify "$STAGING/Harbor.app" "$APP_VERSION" "$RELEASE_TEAM"
+elif [ "$MODE" = --release-adhoc ]; then
+    python3 scripts/signing.py verify-adhoc "$STAGING/Harbor.app" "$APP_VERSION"
 fi
 # This is a generated app in dist; no client apps or profile data are stored here.
 rm -rf "$APP_BUNDLE"
 mv "$STAGING/Harbor.app" "$APP_BUNDLE"
 case "$MODE" in
-  --build-only|--release-only) echo "$APP_BUNDLE" ;;
+  --build-only|--release-only|--release-adhoc) echo "$APP_BUNDLE" ;;
   --debug) lldb -- "$APP_BUNDLE/Contents/MacOS/Harbor" "$@" ;;
   *)
     /usr/bin/open -n "$APP_BUNDLE" --args "$@"
