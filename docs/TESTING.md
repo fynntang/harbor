@@ -101,3 +101,9 @@ Formatting/shell syntax checks, 11 profile tests and 6 version tests passed. Pac
 - Local release compilation of the Swift GUI and native helper passed. The development bundle still passes build, signing verification and launch checks.
 - Five Python release-gate tests passed. An actual ad-hoc development bundle was rejected by the release verifier. Shell syntax, paired documentation and local links passed (12 pages, 124 links/anchors, 34 fenced blocks).
 - No valid Developer ID Application identity was available in the local keychain. Actual Developer ID signing, secure timestamping, notarization, installation on another Mac and Release publishing remain unverified. The current change provides the signing configuration and verification gates only.
+
+## Instance name badges (2026-09-08)
+
+- Local Rust checks passed: **76 tests**, formatting, Clippy and release build. Local Swift suite: **22 tests passed**. Added coverage includes immutable original-image snapshots, symlink refusal, badge rendering, unclipped menu initials, saved label/color choices and post-clone icon failure recovery.
+- A real official-app clone was created under an isolated temporary directory and received two consecutive generated icon updates. Original snapshot bytes remained unchanged, and both final signatures passed deep/strict verification. The client was never launched or signed in.
+- The preview artifact was rendered by the actual GUI icon code and visually inspected at large and small sizes. The development app rebuilt and remained running. Native UI automation failed with a closed pipe, so clicking through the new forms and checking the live Dock/menu bar remain unverified in this change.

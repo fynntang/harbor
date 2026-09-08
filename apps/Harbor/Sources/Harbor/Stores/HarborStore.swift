@@ -45,7 +45,7 @@ final class HarborStore {
     } catch { self.error = GUIMessage(error: error) }
   }
 
-  func create(name: String, source: String) async {
+  func create(name: String, source: String, iconPNG: Data? = nil, trayPNG: Data? = nil) async {
     guard !busy, validProfileName(name) else { return }
     busy = true
     activity = "正在准备…"
@@ -62,6 +62,11 @@ final class HarborStore {
       selection = result.profile.name
       message = "副本已创建。点击“启动”，在新窗口登录工作账号。"
       try await load()
+      if let iconPNG, let trayPNG {
+        activity = "正在准备图标并验证副本签名…"
+        try await applyIcon(name: result.profile.name, png: iconPNG, trayPNG: trayPNG)
+        iconRevision += 1
+      }
     } catch { self.error = GUIMessage(error: error) }
   }
 
@@ -155,20 +160,8 @@ final class HarborStore {
     report = nil
     activity = "正在准备图标并验证副本签名…"
     defer { busy = false }
-    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     do {
-      try FileManager.default.createDirectory(
-        at: directory, withIntermediateDirectories: false,
-        attributes: [.posixPermissions: 0o700])
-      defer { try? FileManager.default.removeItem(at: directory) }
-      let image = directory.appendingPathComponent("icon.png")
-      try png.write(to: image, options: .atomic)
-      let tray = directory.appendingPathComponent("tray.png")
-      try trayPNG.write(to: tray, options: .atomic)
-      let result: IconResult = try await client.request([
-        "icon", item.id, "--image", image.path, "--tray-image", tray.path,
-      ])
-      guard result.updated else { throw CLIError(message: "图标未更新，请重试。") }
+      try await applyIcon(name: item.id, png: png, trayPNG: trayPNG)
       iconRevision += 1
       message = "图标已更新，重新启动该实例后生效。Dock 中缓存的旧图标可能需要重新固定。"
       try await load()
@@ -177,6 +170,22 @@ final class HarborStore {
       self.error = GUIMessage(error: error)
       return false
     }
+  }
+
+  private func applyIcon(name: String, png: Data, trayPNG: Data) async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(
+      at: directory, withIntermediateDirectories: false,
+      attributes: [.posixPermissions: 0o700])
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let image = directory.appendingPathComponent("icon.png")
+    try png.write(to: image, options: .atomic)
+    let tray = directory.appendingPathComponent("tray.png")
+    try trayPNG.write(to: tray, options: .atomic)
+    let result: IconResult = try await client.request([
+      "icon", name, "--image", image.path, "--tray-image", tray.path,
+    ])
+    guard result.updated else { throw CLIError(message: "图标未更新，请重试。") }
   }
 
   func reveal(_ path: String) {

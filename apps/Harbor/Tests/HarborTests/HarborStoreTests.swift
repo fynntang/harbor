@@ -5,6 +5,40 @@ import XCTest
 
 final class HarborStoreTests: XCTestCase, @unchecked Sendable {
   @MainActor
+  func testCreatedCopyGetsBadgeBeforeFlowFinishes() async throws {
+    let fixture = try Fixture()
+    defer { fixture.remove() }
+    let store = HarborStore(client: HarborClient(executable: fixture.cli))
+    store.creating = true
+    await store.create(
+      name: "work", source: "/Applications/Original.app", iconPNG: Data([1]), trayPNG: Data([2]))
+    XCTAssertNil(store.error)
+    XCTAssertFalse(store.creating)
+    XCTAssertFalse(store.busy)
+    XCTAssertEqual(store.iconRevision, 1)
+    XCTAssertTrue(
+      FileManager.default.fileExists(atPath: fixture.dir.appendingPathComponent("icon-called").path)
+    )
+  }
+
+  @MainActor
+  func testIconFailureKeepsCreatedProfileWithoutOfferingDuplicateCreation() async throws {
+    let fixture = try Fixture()
+    defer { fixture.remove() }
+    try Data().write(to: fixture.dir.appendingPathComponent("fail-icon"))
+    let store = HarborStore(client: HarborClient(executable: fixture.cli))
+    store.creating = true
+    await store.create(
+      name: "work", source: "/Applications/Original.app", iconPNG: Data([1]), trayPNG: Data([2]))
+    XCTAssertEqual(store.error?.rendered(language: .english), "Icon failed")
+    XCTAssertEqual(store.selection, "work")
+    XCTAssertEqual(store.profiles.count, 1)
+    XCTAssertFalse(store.creating)
+    XCTAssertFalse(store.busy)
+    XCTAssertEqual(store.iconRevision, 0)
+  }
+
+  @MainActor
   func testCreateStartCheckFlowKeepsSelectionAndPreventsDuplicateLaunch() async throws {
     let fixture = try Fixture()
     defer { fixture.remove() }
@@ -128,6 +162,17 @@ private struct Fixture {
           touch removed
           rm -f created
           printf '{"api_version":1,"ok":true,"data":{"retained_data":"/test/retained/work"}}\n'
+          ;;
+        icon)
+          test -f created || exit 2
+          test -f "$5" || exit 3
+          test -f "$7" || exit 4
+          touch icon-called
+          if [ -f fail-icon ]; then
+            printf '{"api_version":1,"ok":false,"error":"Icon failed"}\n'
+            exit 1
+          fi
+          printf '{"api_version":1,"ok":true,"data":{"updated":true}}\n'
           ;;
         doctor)
           printf '{"api_version":1,"ok":true,"data":{"passed":false,"report":"FAIL: codesign","error":"Signature mismatch"}}\n'

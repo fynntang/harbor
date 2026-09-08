@@ -208,5 +208,16 @@ final class GUILocalization {
     "选择实例图标": "Choose an Instance Icon",
     "需要检查": "Needs attention",
     "语言": "Language",
+    "蓝色": "Blue", "绿色": "Green", "橙色": "Orange", "紫色": "Purple", "粉色": "Pink", "黄色": "Yellow",
+    "角标简称": "Badge text", "角标颜色": "Badge color", "自动分配": "Automatic",
+    "最多 4 个字符；留空时根据副本名称生成。": "Up to 4 characters; leave blank to derive from the instance name.",
+    "菜单栏简称": "Menu-bar initials",
+    "使用角标的前两个字符，保持透明背景。": "Uses the first two badge characters on a transparent background.",
+    "无法读取原版图标，请确认官方应用仍在所选位置。":
+      "Cannot read the original icon. Check that the official app is still at the selected location.",
+    "角标简称不能超过 4 个字符，也不能包含换行。": "Badge text must be at most 4 characters with no line breaks.",
+    "无法生成角标图标。": "Could not generate the badge icon.",
+    "使用名称角标": "Use a Name Badge", "图标样式": "Icon style",
+    "原版加角标": "Original with Badge", "自选图片": "Custom Image",
   ]
 }

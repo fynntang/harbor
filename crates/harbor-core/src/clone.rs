@@ -3,6 +3,7 @@ use crate::{environment, fsutil, model, process, store, AppInfo, Profile, Store,
 use anyhow::{bail, ensure, Context, Result};
 use std::ffi::CString;
 use std::fs::{self, DirBuilder};
+use std::io::Write;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::DirBuilderExt;
 use std::path::{Component, Path};
@@ -291,6 +292,7 @@ fn prepare_bundle(
         tempfile::NamedTempFile::new_in(staged.parent().context("Missing staging parent")?)?;
     plist::Value::Dictionary(filtered).to_writer_xml(file.as_file_mut())?;
     file.as_file().sync_all()?;
+    preserve_original_icon(staged)?;
     progress("sign");
     patch_info(staged, profile)?;
     // Keep nested vendor code intact. Only the outer copy is signed locally;
@@ -312,6 +314,31 @@ fn prepare_bundle(
             .arg(staged),
         "Verify signed application copy",
     )?;
+    Ok(())
+}
+
+// Keep a signed, pristine source for repeated GUI badge edits.
+fn preserve_original_icon(app: &Path) -> Result<()> {
+    let resources = app.join("Contents/Resources");
+    ensure!(
+        fs::symlink_metadata(&resources)?.file_type().is_dir(),
+        "Unsupported icon resources directory"
+    );
+    let original = resources.join("icon-chatgpt.png");
+    ensure!(
+        fs::symlink_metadata(&original)?.file_type().is_file(),
+        "Unsupported original icon"
+    );
+    let metadata = fs::metadata(&original)?;
+    ensure!(
+        metadata.len() <= 16 * 1024 * 1024,
+        "Original icon exceeds size limit"
+    );
+    let mut destination = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(resources.join("harbor-original-icon.png"))?;
+    destination.write_all(&fs::read(original)?)?;
     Ok(())
 }
 
@@ -435,6 +462,34 @@ mod tests {
     use super::*;
     use std::os::unix::fs::{symlink, PermissionsExt};
     use std::path::PathBuf;
+
+    #[test]
+    fn original_icon_is_saved_once_and_never_overwritten() {
+        let temp = tempfile::tempdir().unwrap();
+        let resources = temp.path().join("Contents/Resources");
+        fs::create_dir_all(&resources).unwrap();
+        fs::write(resources.join("icon-chatgpt.png"), b"original").unwrap();
+        preserve_original_icon(temp.path()).unwrap();
+        fs::write(resources.join("icon-chatgpt.png"), b"badged").unwrap();
+        assert!(preserve_original_icon(temp.path()).is_err());
+        assert_eq!(
+            fs::read(resources.join("harbor-original-icon.png")).unwrap(),
+            b"original"
+        );
+    }
+
+    #[test]
+    fn original_icon_backup_never_follows_symlinks() {
+        let temp = tempfile::tempdir().unwrap();
+        let resources = temp.path().join("Contents/Resources");
+        fs::create_dir_all(&resources).unwrap();
+        fs::write(resources.join("icon-chatgpt.png"), b"original").unwrap();
+        let outside = temp.path().join("outside");
+        fs::write(&outside, b"untouched").unwrap();
+        std::os::unix::fs::symlink(&outside, resources.join("harbor-original-icon.png")).unwrap();
+        assert!(preserve_original_icon(temp.path()).is_err());
+        assert_eq!(fs::read(outside).unwrap(), b"untouched");
+    }
 
     struct Fixture {
         _temp: tempfile::TempDir,

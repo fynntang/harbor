@@ -7,6 +7,11 @@ struct IconImage {
   let png: Data
   let preview: NSImage
 
+  init(png: Data, preview: NSImage) {
+    self.png = png
+    self.preview = preview
+  }
+
   init(url: URL) throws {
     let values = try url.resourceValues(forKeys: [.fileSizeKey])
     guard let size = values.fileSize, size <= 16 * 1024 * 1024,
@@ -44,6 +49,10 @@ struct IconImage {
     self.preview = preview
   }
   static func menuBarLetter(_ name: String) throws -> Data {
+    try menuBarText(String(name.prefix(1)))
+  }
+
+  static func menuBarText(_ name: String) throws -> Data {
     guard
       let bitmap = NSBitmapImageRep(
         bitmapDataPlanes: nil, pixelsWide: 36, pixelsHigh: 36,
@@ -53,10 +62,19 @@ struct IconImage {
     else { throw CLIError(message: "无法生成菜单栏图标。") }
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = context
-    let text = NSAttributedString(
-      string: String(name.prefix(1)).uppercased(),
+    let label = String(name.uppercased().prefix(2))
+    let initialSize: CGFloat = label.count > 1 ? 20 : 28
+    let measured = NSAttributedString(
+      string: label,
       attributes: [
-        .font: NSFont.systemFont(ofSize: 28, weight: .bold), .foregroundColor: NSColor.black,
+        .font: NSFont.systemFont(ofSize: initialSize, weight: .bold)
+      ])
+    let fontSize = min(initialSize, initialSize * 32 / max(measured.size().width, 1))
+    let text = NSAttributedString(
+      string: label,
+      attributes: [
+        .font: NSFont.systemFont(ofSize: fontSize, weight: .bold),
+        .foregroundColor: NSColor.black,
       ])
     let size = text.size()
     text.draw(at: NSPoint(x: (36 - size.width) / 2, y: (36 - size.height) / 2))

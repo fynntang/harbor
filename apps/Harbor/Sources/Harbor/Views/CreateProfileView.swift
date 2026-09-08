@@ -7,6 +7,11 @@ struct CreateProfileView: View {
   @State private var name = ""
   @State private var source = "/Applications/ChatGPT.app"
 
+  @State private var useBadge = true
+  @State private var badge = BadgeSettings()
+  @State private var badgeImage: IconImage?
+  @State private var badgeTray: Data?
+
   var body: some View {
     VStack(alignment: .leading, spacing: 20) {
       Text(store.text("创建独立副本")).font(.title2.bold())
@@ -25,6 +30,14 @@ struct CreateProfileView: View {
       if validProfileName(name) {
         Text(store.text("副本：~/Applications/Harbor/ChatGPT-\(name).app"))
           .font(.caption).foregroundStyle(.secondary)
+      }
+      Toggle(store.text("使用名称角标"), isOn: $useBadge).disabled(store.busy)
+      if useBadge {
+        BadgeEditor(
+          store: store, name: name,
+          originalURL: URL(fileURLWithPath: source).appendingPathComponent(
+            "Contents/Resources/icon-chatgpt.png"),
+          settings: $badge, image: $badgeImage, trayPNG: $badgeTray)
       }
       Text(store.text("新副本使用本地签名，数据目录为空。现有副本和账号不会被覆盖。"))
         .font(.callout)
@@ -45,9 +58,20 @@ struct CreateProfileView: View {
           dismiss()
         }
         .keyboardShortcut(.cancelAction).disabled(store.busy)
-        Button(store.text("创建副本")) { Task { await store.create(name: name, source: source) } }
-          .keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
-          .disabled(store.busy || !validProfileName(name) || source.isEmpty)
+        Button(store.text("创建副本")) {
+          Task {
+            await store.create(
+              name: name, source: source,
+              iconPNG: useBadge ? badgeImage?.png : nil, trayPNG: useBadge ? badgeTray : nil)
+            if useBadge, store.error == nil, let app = store.selected?.profile.app_bundle {
+              badge.save(for: app)
+            }
+          }
+        }
+        .keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
+        .disabled(
+          store.busy || !validProfileName(name) || source.isEmpty
+            || (useBadge && (badgeImage == nil || badgeTray == nil)))
       }
     }
     .padding(28).frame(width: 570)

@@ -338,6 +338,7 @@ mod tests {
                     "icon-codex-dark-color.png",
                     "chatgptTemplate.png",
                     "chatgptTemplate@2x.png",
+                    "harbor-original-icon.png",
                 ] {
                     fs::write(resources.join(file), PNG).unwrap();
                 }
@@ -398,6 +399,10 @@ mod tests {
             assert!(fs::read(resources.join("icon-chatgpt.icns"))
                 .unwrap()
                 .starts_with(b"icns"));
+            assert_eq!(
+                fs::read(resources.join("harbor-original-icon.png")).unwrap(),
+                PNG
+            );
             let tray = fs::read(resources.join("chatgptTemplate@2x.png")).unwrap();
             assert_eq!(u32::from_be_bytes(tray[16..20].try_into().unwrap()), 36);
             assert!(!fixture.store.home.read_dir().unwrap().any(|e| e
