@@ -93,3 +93,20 @@ dist/Harbor.app/Contents/Helpers/harbor remove work --yes
 - JSON 状态：`running`、`stopped`、`helpers_running`、`conflict`；列表遇到进程检查错误时可能报告 `unknown`。`pids` 只包含主进程 ID，`helpers_running` 也不例外。
 
 通过 Finder 启动 Harbor 不会读取终端 shell 配置。仅在终端导出的环境值不会自动提供给其启动的实例。详见[路由与环境变量](ARCHITECTURE.md#environment)。
+
+<a id="release-build"></a>
+## 发布构建与签名
+
+上面的开发命令仍生成 `dist/Harbor.app`，包含 debug Swift GUI/原生辅助程序、release Rust CLI 和 ad-hoc 签名。独立发布命令以 release 模式编译三个程序，输出到 `dist/release/Harbor.app`，不停止或替换开发版应用。首版仅支持 macOS 14+ / arm64。
+
+在构建机器的钥匙串中安装有效的 **Developer ID Application** 证书及其对应私钥。将 `HARBOR_SIGNING_IDENTITY` 设置为该证书的 40 位 SHA-1 指纹；指纹是标识符，不是私钥。私钥及其密码不得进入源码、命令示例或发布附件。
+
+```bash
+HARBOR_SIGNING_IDENTITY=YOUR_CERTIFICATE_SHA1 ./scripts/build_and_run.sh --release-only
+```
+
+将占位符替换为证书指纹。配置缺失、格式不正确、签名身份不可用或证书类型不符时，命令会在构建或替换应用前停止，不降级为 ad-hoc 签名。两个辅助程序使用稳定签名标识 `local.harbor.desktop.cli` 和 `local.harbor.desktop.native`；GUI 保留 `local.harbor.desktop`，继续读取已有偏好。
+
+脚本先签辅助程序，再签 Harbor.app，使用选定身份、Hardened Runtime 和安全时间戳。写入最终本地产物前，`scripts/signing.py` 验证 Apple 签名信任锚、签名、签名团队、标识、运行时标志、时间戳、三个程序一致的 arm64 架构及 GUI/CLI/工作区版本一致性。检查失败不会替换先前的发布版应用。不额外添加 entitlement。这些配置只用于 Harbor 自身和内置辅助程序；用户创建的客户端副本继续使用已有本地签名流程，不会获得发布者的证书或私钥。
+
+**此命令生成已签名应用，不代表已完成公证分发。** Apple 公证、票据装订、ZIP/校验文件生成、另一台 Mac 的安装验收及 GitHub Release 发布仍是后续步骤，不能将中间产物标记为已公证或已通过 Gatekeeper。当前 CI 不执行正式签名，仅测试签名门槛并编译 release Swift 程序，不访问签名凭据。

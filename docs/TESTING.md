@@ -94,3 +94,10 @@ Formatting/shell syntax checks, 11 profile tests and 6 version tests passed. Pac
 - Packaged `Harbor.app` build, signature verification and process launch passed. UI checks covered immediate English/简体中文 switching, the English creation form, preserved form input and saved English selection after rebuilding/relaunching. No client instance was created or removed for these checks.
 - Rust logic did not change; the prior Rust results above are historical for this GUI change. CLI/backend diagnostics and system-owned text are outside GUI translation coverage.
 - Strict Swift lint still reports 11 pre-existing snake_case JSON field names in `Profile.swift`; these protocol model names were preserved. This is not a passing full-lint claim.
+
+## Release build preparation (2026-09-08)
+
+- GitHub Actions for commit `edef48f` completed successfully on macOS and Ubuntu.
+- Local release compilation of the Swift GUI and native helper passed. The development bundle still passes build, signing verification and launch checks.
+- Five Python release-gate tests passed. An actual ad-hoc development bundle was rejected by the release verifier. Shell syntax, paired documentation and local links passed (12 pages, 124 links/anchors, 34 fenced blocks).
+- No valid Developer ID Application identity was available in the local keychain. Actual Developer ID signing, secure timestamping, notarization, installation on another Mac and Release publishing remain unverified. The current change provides the signing configuration and verification gates only.

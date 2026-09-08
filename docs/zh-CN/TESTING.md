@@ -94,3 +94,10 @@ CLI、核心包和 GUI 版本统一使用 `0.0.1`；打包从 Cargo metadata 读
 - `Harbor.app` 打包、签名验证和进程启动通过。界面检查覆盖 English/简体中文即时切换、英文创建表单、表单输入保留，以及重新构建/启动后保留英文选择。检查期间未创建或删除客户端实例。
 - Rust 逻辑未改动；上文 Rust 结果属于此前验证记录。本次 GUI 翻译范围不包括 CLI/底层诊断及系统控制的文字。
 - 严格 Swift lint 仍报告 `Profile.swift` 中 11 个既有 snake_case JSON 字段命名；本次保留这些协议模型名称，不宣称完整 lint 通过。
+
+## 发布构建准备（2026-09-08）
+
+- 提交 `edef48f` 的 GitHub Actions 在 macOS 和 Ubuntu 上均通过。
+- 本地 Swift GUI 和原生辅助程序的 release 编译通过；开发包的构建、签名验证和启动检查仍通过。
+- 5 项 Python 发布门槛测试通过；真实 ad-hoc 开发包被发布验证器拒绝。Shell 语法、双语文档及本地链接检查通过（12 页、124 处链接/锚点、34 个代码块）。
+- 本机钥匙串中没有可用的 Developer ID Application 签名身份。真实 Developer ID 签名、安全时间戳、公证、另一台 Mac 的安装验收和 Release 发布仍未验证。本次仅完成签名配置入口和验证门槛。

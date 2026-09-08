@@ -93,3 +93,20 @@ Retained `profile.json` still records the original paths. To restore, first quit
 - JSON status: `running`, `stopped`, `helpers_running`, `conflict`; list may report `unknown` on a process-inspection error. `pids` contains main-process IDs only, even for `helpers_running`.
 
 Finder-launched Harbor does not source terminal shell configuration. Environment values exported only in a terminal will not automatically be available to its child instances. See [routing and environment](ARCHITECTURE.md#environment).
+
+<a id="release-build"></a>
+## Release builds and signing
+
+Development commands above still produce `dist/Harbor.app` with a debug Swift GUI/native helper, a release Rust CLI and ad-hoc signatures. The separate release command compiles all three programs in release mode and produces `dist/release/Harbor.app`; it neither stops nor replaces the development app. The first release supports macOS 14+ on arm64 only.
+
+Install a valid **Developer ID Application** certificate and its matching private key in the build machine’s keychain. Set `HARBOR_SIGNING_IDENTITY` to that certificate’s 40-character SHA-1 fingerprint; the fingerprint is an identifier, not a private key. Never put the private key or its password in source, command examples or release assets.
+
+```bash
+HARBOR_SIGNING_IDENTITY=YOUR_CERTIFICATE_SHA1 ./scripts/build_and_run.sh --release-only
+```
+
+Replace the placeholder with your certificate fingerprint. Missing, malformed, unavailable or wrong-type identities stop the command before any build or app replacement. There is no ad-hoc fallback. The helpers use stable signing identifiers `local.harbor.desktop.cli` and `local.harbor.desktop.native`; the GUI keeps `local.harbor.desktop` so its existing preferences remain accessible.
+
+The script signs the helpers first, then Harbor.app, using the selected identity, Hardened Runtime and a secure timestamp. Before publishing the local output, `scripts/signing.py` verifies the Apple signing anchor, signatures, signing team, identifiers, runtime flags, timestamps, matching arm64 architectures and matching GUI/CLI/workspace versions. A failed check prevents replacing the previous release app. No additional entitlements are added. These signing settings apply only to Harbor and its own helpers; user-created client copies retain their existing local signing flow and never receive the publisher’s certificate/private key.
+
+**This command creates a signed app, not a notarized distribution.** Apple notarization, ticket stapling, ZIP/checksum generation, installation testing on another Mac and GitHub Release publishing remain subsequent steps. Do not label this intermediate output as notarized or Gatekeeper-accepted. Release signing is not performed by the current CI: CI tests the gates and compiles the release Swift executables without accessing signing credentials.

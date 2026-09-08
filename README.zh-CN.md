@@ -151,3 +151,5 @@ swift test --package-path apps/Harbor --scratch-path target/swift-harbor
 ```
 
 CLI、核心包和 GUI 应用版本统一为 `0.0.1`。GUI 打包从 Cargo metadata 读取 CLI 包版本，macOS 独立构建号为 `1`。包元数据声明 MIT 许可。本地 ad-hoc 打包不等于经过公证的发行版。[测试记录](docs/zh-CN/TESTING.md)区分当前检查、历史客户端实验，以及待完成的账号/GUI 验收。`SOURCE_CHECKS.txt` 是历史快照，不是当前验收证据。
+
+Developer ID 构建方式见[发布构建与签名](docs/zh-CN/GUI.md#release-build)。开发构建继续使用 ad-hoc 签名；已签名发布构建仍需完成公证后再正常分发。

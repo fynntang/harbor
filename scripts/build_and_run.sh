@@ -3,12 +3,25 @@ set -euo pipefail
 MODE="${1:-run}"
 if [ "$#" -gt 0 ]; then shift; fi
 case "$MODE" in
-  run|--build-only|--debug|--logs|--telemetry|--verify) ;;
-  *) echo "usage: $0 [run|--build-only|--debug|--logs|--telemetry|--verify] [--registry PATH]" >&2; exit 2 ;;
+  run|--build-only|--release-only|--debug|--logs|--telemetry|--verify) ;;
+  *) echo "usage: $0 [run|--build-only|--release-only|--debug|--logs|--telemetry|--verify] [--registry PATH]" >&2; exit 2 ;;
 esac
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_BUNDLE="$ROOT_DIR/dist/Harbor.app"
 cd "$ROOT_DIR"
+SWIFT_CONFIGURATION=debug
+SIGNING_ARGS=(--force --sign -)
+if [ "$MODE" = --release-only ]; then
+    if [ "$#" -ne 0 ]; then
+        echo "--release-only does not accept launch arguments" >&2
+        exit 2
+    fi
+    RELEASE_TEAM="$(python3 scripts/signing.py preflight)"
+    APP_BUNDLE="$ROOT_DIR/dist/release/Harbor.app"
+    SWIFT_CONFIGURATION=release
+    SIGNING_ARGS=(--force --sign "$HARBOR_SIGNING_IDENTITY" --options runtime --timestamp)
+fi
+if [ "$MODE" != --release-only ]; then
 # Stop only this checkout's GUI. Refuse while its bundled CLI has an operation in flight.
 python3 - "$APP_BUNDLE" <<'PY'
 import os, signal, subprocess, sys
@@ -22,11 +35,12 @@ for row in parsed:
         try: os.kill(int(row[0]), signal.SIGTERM)
         except ProcessLookupError: pass
 PY
+fi
 cargo build --release --locked -p harbor-cli
 APP_VERSION="$(cargo metadata --locked --no-deps --format-version 1 | python3 -c 'import json, sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"] == "harbor-cli"))')"
-swift build --package-path apps/Harbor --scratch-path target/swift-harbor
-SWIFT_BIN="$(swift build --package-path apps/Harbor --scratch-path target/swift-harbor --show-bin-path)/Harbor"
-mkdir -p dist
+swift build --configuration "$SWIFT_CONFIGURATION" --package-path apps/Harbor --scratch-path target/swift-harbor
+SWIFT_BIN="$(swift build --configuration "$SWIFT_CONFIGURATION" --package-path apps/Harbor --scratch-path target/swift-harbor --show-bin-path)/Harbor"
+mkdir -p "$(dirname "$APP_BUNDLE")"
 STAGING="$(mktemp -d "$ROOT_DIR/dist/.harbor-build.XXXXXX")"
 trap 'rm -rf "$STAGING"' EXIT
 CONTENTS="$STAGING/Harbor.app/Contents"
@@ -52,15 +66,18 @@ cat > "$CONTENTS/Info.plist" <<PLIST
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST
-/usr/bin/codesign --force --sign - "$CONTENTS/Helpers/harbor"
-/usr/bin/codesign --force --sign - "$CONTENTS/Helpers/harbor-native"
-/usr/bin/codesign --force --sign - "$STAGING/Harbor.app"
+/usr/bin/codesign "${SIGNING_ARGS[@]}" --identifier local.harbor.desktop.cli "$CONTENTS/Helpers/harbor"
+/usr/bin/codesign "${SIGNING_ARGS[@]}" --identifier local.harbor.desktop.native "$CONTENTS/Helpers/harbor-native"
+/usr/bin/codesign "${SIGNING_ARGS[@]}" "$STAGING/Harbor.app"
 /usr/bin/codesign --verify --deep --strict "$STAGING/Harbor.app"
+if [ "$MODE" = --release-only ]; then
+    python3 scripts/signing.py verify "$STAGING/Harbor.app" "$APP_VERSION" "$RELEASE_TEAM"
+fi
 # This is a generated app in dist; no client apps or profile data are stored here.
 rm -rf "$APP_BUNDLE"
 mv "$STAGING/Harbor.app" "$APP_BUNDLE"
 case "$MODE" in
-  --build-only) echo "$APP_BUNDLE" ;;
+  --build-only|--release-only) echo "$APP_BUNDLE" ;;
   --debug) lldb -- "$APP_BUNDLE/Contents/MacOS/Harbor" "$@" ;;
   *)
     /usr/bin/open -n "$APP_BUNDLE" --args "$@"

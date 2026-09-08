@@ -13,3 +13,6 @@
 # SwiftPM local build state.
 apps/Harbor/.build/
 apps/Harbor/.swiftpm/
+
+# Python caches from release validation tests.
+__pycache__/
