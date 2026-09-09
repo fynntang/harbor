@@ -158,6 +158,7 @@ final class GUILocalization {
     "未运行": "Stopped",
     "未知构建号": "unknown build",
     "未记录构建号": "build not recorded",
+    "关闭提示": "Dismiss notice",
     "查看保留的数据": "Show Retained Data",
     "检查": "Check",
     "检查发现问题": "Issues Found",

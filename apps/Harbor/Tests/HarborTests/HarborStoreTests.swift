@@ -5,6 +5,55 @@ import XCTest
 
 final class HarborStoreTests: XCTestCase, @unchecked Sendable {
   @MainActor
+  func testDismissingRemovalNoticeDoesNotDeleteDataOrClearOtherErrors() throws {
+    let fixture = try Fixture()
+    defer { fixture.remove() }
+    let store = HarborStore(client: HarborClient(executable: fixture.cli))
+    store.retainedData = fixture.dir.path
+    store.removalNotice = "实例已删除，账号数据已保留。"
+    store.error = "Other error"
+    store.dismissRemovalNotice()
+    XCTAssertNil(store.retainedData)
+    XCTAssertNil(store.removalNotice)
+    XCTAssertTrue(FileManager.default.fileExists(atPath: fixture.dir.path))
+    XCTAssertNotNil(store.error)
+  }
+
+  @MainActor
+  func testRefreshClearsNoticeAfterRetainedDirectoryIsRemoved() async throws {
+    let fixture = try Fixture()
+    defer { fixture.remove() }
+    let retained = fixture.dir.appendingPathComponent("retained")
+    try FileManager.default.createDirectory(at: retained, withIntermediateDirectories: false)
+    let store = HarborStore(client: HarborClient(executable: fixture.cli))
+    store.retainedData = retained.path
+    store.removalNotice = "实例已删除，账号数据已保留。"
+    await store.refresh()
+    XCTAssertNotNil(store.removalNotice)
+    XCTAssertEqual(store.retainedData, retained.path)
+    try FileManager.default.removeItem(at: retained)
+    store.error = "路径不存在：\(retained.path)"
+    await store.refresh()
+    XCTAssertNil(store.removalNotice)
+    XCTAssertNil(store.retainedData)
+    XCTAssertNil(store.error)
+  }
+
+  @MainActor
+  func testMissingRetainedDirectoryCannotLeaveADeadRevealButton() throws {
+    let fixture = try Fixture()
+    defer { fixture.remove() }
+    let store = HarborStore(client: HarborClient(executable: fixture.cli))
+    let missing = fixture.dir.appendingPathComponent("missing").path
+    store.retainedData = missing
+    store.removalNotice = "实例已删除，账号数据已保留。"
+    store.reveal(missing)
+    XCTAssertNil(store.removalNotice)
+    XCTAssertNil(store.retainedData)
+    XCTAssertNotNil(store.error)
+  }
+
+  @MainActor
   func testCreatedCopyGetsBadgeBeforeFlowFinishes() async throws {
     let fixture = try Fixture()
     defer { fixture.remove() }

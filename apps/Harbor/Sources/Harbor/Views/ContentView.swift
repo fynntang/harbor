@@ -65,7 +65,19 @@ struct ContentView: View {
         }
         if let notice = store.removalNotice {
           VStack(alignment: .leading, spacing: 6) {
-            Label(store.text(notice), systemImage: "checkmark.circle")
+            HStack {
+              Label(store.text(notice), systemImage: "checkmark.circle")
+              Spacer()
+              Button {
+                store.dismissRemovalNotice()
+              } label: {
+                Image(systemName: "xmark")
+              }
+              .buttonStyle(.borderless)
+              .help(store.text("关闭提示"))
+              .accessibilityLabel(store.text("关闭提示"))
+              .accessibilityIdentifier("dismiss-removal-notice")
+            }
             if let retained = store.retainedData {
               Text(retained).font(.caption).textSelection(.enabled)
               Button(store.text("查看保留的数据")) { store.reveal(retained) }.buttonStyle(.link)
@@ -74,7 +86,19 @@ struct ContentView: View {
         }
         if let error = store.error, !store.creating {
           VStack(alignment: .leading, spacing: 6) {
-            Label(store.text("操作未完成"), systemImage: "exclamationmark.triangle").font(.headline)
+            HStack {
+              Label(store.text("操作未完成"), systemImage: "exclamationmark.triangle").font(.headline)
+              Spacer()
+              Button {
+                store.error = nil
+              } label: {
+                Image(systemName: "xmark")
+              }
+              .buttonStyle(.borderless)
+              .help(store.text("关闭提示"))
+              .accessibilityLabel(store.text("关闭提示"))
+              .accessibilityIdentifier("dismiss-error-notice")
+            }
             Text(store.text(error)).textSelection(.enabled)
             Text(store.text("请检查上述原因，调整后重试；也可以使用“检查”查看详情。"))
               .font(.caption).foregroundStyle(.secondary)

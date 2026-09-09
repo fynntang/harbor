@@ -38,6 +38,9 @@ final class HarborStore {
     guard !busy else { return }
     busy = true
     activity = "正在读取实例…"
+    if let retainedData, !FileManager.default.fileExists(atPath: retainedData) {
+      dismissRemovalNotice()
+    }
     defer { busy = false }
     do {
       try await load()
@@ -188,8 +191,14 @@ final class HarborStore {
     guard result.updated else { throw CLIError(message: "图标未更新，请重试。") }
   }
 
+  func dismissRemovalNotice() {
+    removalNotice = nil
+    retainedData = nil
+  }
+
   func reveal(_ path: String) {
     guard FileManager.default.fileExists(atPath: path) else {
+      if path == retainedData { dismissRemovalNotice() }
       error = "路径不存在：\(path)"
       return
     }

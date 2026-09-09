@@ -65,7 +65,7 @@ GUI 在报告残留辅助进程时禁用图标更新。核心 `icon` 命令在�
 
 原生 helper 对 macOS 登记/就绪、发送正常退出请求和观察退出共设置 15 秒时限。之后 Rust 最多再等待五秒，检查 app、`codex_home`、`gui_home` 中的辅助进程。已知路径的孤儿 Crashpad、Computer Use 和快捷键监视程序，在核对属主、父进程及启动时间后可能收到 SIGTERM。未知或仍有活动父进程的 helper 会阻止完成，不回退到 SIGKILL。失败或超时会阻止 GUI 删除。
 
-删除默认将整个 Profile 目录保留到 `<root>/retained/<identifier>-<random>/profile`，仅将应用移到系统废纸篓。登记会从列表移除，界面显示保留路径。勾选**同时将账号数据移到废纸篓**会把整个 Profile 目录也移走，包括元数据、日志和数据。Harbor 不清空废纸篓。
+删除默认将整个 Profile 目录保留到 `<root>/retained/<identifier>-<random>/profile`，仅将应用移到系统废纸篓。登记会从列表移除，界面显示保留路径。勾选**同时将账号数据移到废纸篓**会把整个 Profile 目录也移走，包括元数据、日志和数据。Harbor 不清空废纸篓。 删除结果和错误提示均可点击关闭；关闭只清理提示，不删除文件。若保留目录在 Harbor 外被删除，刷新或切回窗口会清除失效的删除结果提示。这些提示仅保存在内存中，退出 Harbor 后也会消失。
 
 删除要求 `adopted_data=false`、预期的 Harbor Bundle ID，且数据路径必须正好是该 Profile 自己的 `codex`/`gui`。运行中的进程、默认数据重叠、registry 重叠及其他实例路径重叠都会被拒绝。当前路径（包括工作目录）和应用身份仍须通过检查，应用或目录缺失可能阻止删除。这不是通用的损坏登记清理工具。与 start/icon 不同，仅版本差异不会阻止生命周期操作。
 
