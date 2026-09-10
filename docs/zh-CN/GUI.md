@@ -163,7 +163,7 @@ harbor update work --source /Applications/ChatGPT.app
 
 ### 准备和发布更新
 
-签名私钥保存在 macOS 登录钥匙串的 Sparkle 服务中，账号为 `local.harbor.desktop`。Git 中只保存公钥。换电脑前应安全备份该签名身份；丢失私钥会导致既有 ad-hoc 安装无法信任未来更新。不要每次发布重新生成密钥。CI 检查打包，但没有该私钥，也不会发布更新。
+签名私钥保存在 macOS 登录钥匙串的 Sparkle 服务中，账号为 `local.harbor.desktop`。Git 中只保存公钥。换电脑前应安全备份该签名身份；丢失私钥会导致既有 ad-hoc 安装无法信任未来更新。不要每次发布重新生成密钥。普通 CI 工作流没有签名密钥；独立发布工作流需要配置 `SPARKLE_PRIVATE_KEY` Actions Secret。
 
 1. 递增 Cargo 中的日历版本并更新 Cargo.lock（例如 `26.9.101046` → `26.9.101047`）。保留已发布标签和附件不变。
 2. 构建发行版，再向新目录打包 DMG 和签名更新：
@@ -183,3 +183,11 @@ Developer ID 构建使用 `--release-only`，并向 `package_update.py --team TE
 ### 日历版本标签
 
 标签采用 `vYY.M.DHHmm`，使用发布时 Asia/Shanghai 的日期与 24 小时时间。月份和日期不补前导零，末尾时间始终保留四位。9 月 1 日午夜为 `v26.9.10000`，9 月 10 日 11:56 为 `v26.9.101156`。`0000` 是有效的午夜时间，不使用循环相加编码。Cargo 是唯一版本来源，GUI、CLI、构建号、更新清单和附件名称使用同一数字版本（只有标签带 `v`）。当前配置为 `26.9.101046`，即 2026-09-10 10:46。`scripts/version.py` 验证日期、闰年和时分范围。按数字分段比较可保持跨分钟/小时/日/月/年的顺序，不能直接按字符串字典序排序。同一分钟只能对应一个唯一标签；再次发布应等待下一分钟，不复用标签。支持年份 2000–2099。准备发布时设定版本并更新 Cargo.lock，构建时不会自动改写。
+
+### GitHub Actions 发布工作流
+
+`.github/workflows/release.yml` 在后续包含该工作流的提交推送 `v*` 标签时运行。它验证标签与 Cargo 一致，执行 Rust/Swift/Python 检查，在 arm64 macOS runner 构建并验证 DMG，为 ZIP/清单签名，最后发布附件齐全的稳定版 Release 并标记 latest。需要仓库 Actions Secret `SPARKLE_PRIVATE_KEY`，内容为既有 Sparkle 私钥的 base64 导出值。必须沿用已内嵌公钥对应的密钥，不能为 CI 新建签名身份，也不能将私钥写入源码。只能通过安全的 Secret 输入配置，不放入命令行参数或日志。
+
+`ci_sign_update.py` 使用权限 0600 的临时文件将 Secret 导入临时 runner 钥匙串，由 `package_update.py` 检查公钥一致性，再删除文件和钥匙串条目。构建/测试步骤不接收密钥。`publish_release.py` 拒绝已有 Release 或旧于既有稳定版的版本，要求四项附件及正确校验和，先上传至草稿，检查附件大小后才发布。创建草稿后若失败，保留草稿供人工检查，重试不覆盖。发布串行执行。当前自动流程生成 ad-hoc 构建，不包含 Developer ID/公证；未配置 Secret 会在构建前失败。既有 `v26.9.101046` 标签早于此工作流，本次从本地发布，不移动标签来触发自动化。
+
+工作流还支持在 main 上点击 **Run workflow**（`workflow_dispatch`）仅做验证：使用已配置的 Secret 构建、签名并检查完整附件，但不创建或修改 Release。只有推送 `v*` 标签才会实际发布。仓库签名 Secret 已经授权配置，应仅供可信的发布代码使用。

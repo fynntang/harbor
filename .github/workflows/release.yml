@@ -1,0 +1,73 @@
+name: Publish Harbor release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: harbor-release
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: macos-15
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install stable Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+          rustup default stable
+      - name: Check tag and signing configuration
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          python3 - <<'PY'
+          import os, subprocess, json, sys
+          sys.path.insert(0, 'scripts')
+          from version import validate_display
+          from ci_sign_update import secret_bytes
+          secret_bytes(os.environ)
+          metadata = json.loads(subprocess.check_output(['cargo', 'metadata', '--locked', '--no-deps', '--format-version', '1']))
+          actual = next(p['version'] for p in metadata['packages'] if p['name'] == 'harbor-cli')
+          tag = 'v' + actual if os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch' else os.environ['RELEASE_TAG']
+          version = validate_display(tag.removeprefix('v'))
+          if version != actual:
+              raise SystemExit('Tag does not match Cargo version')
+          with open(os.environ['GITHUB_ENV'], 'a') as stream:
+              stream.write('HARBOR_RELEASE_TAG=' + tag + '\n')
+          PY
+      - name: Test and build
+        run: |
+          sh scripts/check.sh
+          python3 -m unittest discover -s scripts/tests -v
+          swift test --package-path apps/Harbor --scratch-path target/swift-harbor
+          ./scripts/build_and_run.sh --release-adhoc
+      - name: Package and verify DMG
+        run: python3 scripts/package_dmg.py dist/release-adhoc/Harbor.app --output-dir dist/publish
+      - name: Sign update ZIP and appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: python3 scripts/ci_sign_update.py dist/release-adhoc/Harbor.app --output-dir dist/publish
+      - name: Verify complete asset set
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from publish_release import assets_for
+          assets_for(os.environ['HARBOR_RELEASE_TAG'], Path('dist/publish'))
+          print('Complete signed release asset set verified')
+          PY
+      - name: Create complete release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python3 scripts/publish_release.py "$HARBOR_RELEASE_TAG" dist/publish
