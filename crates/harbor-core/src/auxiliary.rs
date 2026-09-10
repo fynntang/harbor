@@ -56,7 +56,7 @@ pub(crate) fn browser_host(profile: &Profile, executable: &Path) -> bool {
         })
 }
 
-#[cfg(any(target_os = "macos", test))]
+#[cfg(target_os = "macos")]
 fn plugin_server(profile: &Profile, executable: &Path) -> bool {
     executable == profile.codex_home.join("plugins/.plugin-appserver/codex")
 }
