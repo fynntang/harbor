@@ -51,6 +51,7 @@ jobs:
       - name: Package and verify DMG
         run: python3 scripts/package_dmg.py dist/release-adhoc/Harbor.app --output-dir dist/publish
       - name: Sign update ZIP and appcast
+        timeout-minutes: 5
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: python3 scripts/ci_sign_update.py dist/release-adhoc/Harbor.app --output-dir dist/publish
