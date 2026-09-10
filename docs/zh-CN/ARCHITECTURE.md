@@ -106,10 +106,10 @@ clone 同时为 Launch Services 修改 `LSEnvironment`，直接执行主程序�
 | 直接启动应用没有 Profile 路由 | clone 有 LSEnvironment，但直接启动绕过 Harbor 校验/允许名单。 |
 | 文本/JSON 状态与 GUI/CLI 图标保护等价 | 分别说明主进程检查和包含辅助进程的检查。 |
 | 准备好/接管的应用通过厂商验证 | 厂商信任验证属于 clone，create/adopt 检查结构/元数据。 |
-| 只有一个当前版本且不需要 Python | 版本从 Cargo 日历版本 `26.9.101853` 派生；打包使用 Python 3。 |
+| 只有一个当前版本且不需要 Python | 版本从 Cargo 日历版本 `26.9.101928` 派生；打包使用 Python 3。 |
 | 旧实验路径和历史测试看起来像当前前提/结果 | 改用通用示例；[测试记录](TESTING.md)区分本轮检查与历史证据。 |
 
-核查后已统一版本：[Cargo.toml](../../Cargo.toml) 提供 `26.9.101853`，[打包脚本](../../scripts/build_and_run.sh) 从 Cargo metadata 读取 CLI 版本用于 GUI。GUI 显示 `26.9.101853`，构建号保留 Cargo 规范化形式，用于 Sparkle 更新比较。文档本地化不代表界面文字已本地化。
+核查后已统一版本：[Cargo.toml](../../Cargo.toml) 提供 `26.9.101928`，[打包脚本](../../scripts/build_and_run.sh) 从 Cargo metadata 读取 CLI 版本用于 GUI。GUI 显示 `26.9.101928`，构建号保留 Cargo 规范化形式，用于 Sparkle 更新比较。文档本地化不代表界面文字已本地化。
 
 ## GUI 语言状态
 

@@ -106,10 +106,10 @@ These differences were resolved in documentation, without changing program behav
 | Direct app launch has no profile routing | Clone has LSEnvironment, but direct launch bypasses Harbor validation/allowlist. |
 | Text/JSON state and GUI/CLI icon guards are interchangeable | Main-only vs auxiliary-aware checks are documented separately. |
 | Prepared/adopted apps are vendor-verified | Vendor trust verification belongs to clone; create/adopt inspect layout/metadata. |
-| One current version and no Python requirement | Versions derive from Cargo calendar version `26.9.101853`; packaging uses Python 3. |
+| One current version and no Python requirement | Versions derive from Cargo calendar version `26.9.101928`; packaging uses Python 3. |
 | Old experiment paths and historical tests read as current prerequisites/results | Examples are generic; [Testing](TESTING.md) separates fresh checks and historical evidence. |
 
-After the audit, the versions were unified: [Cargo.toml](../Cargo.toml) supplies `26.9.101853`, and [packaging](../scripts/build_and_run.sh) reads the CLI version from Cargo metadata for the GUI. The GUI displays `26.9.101853`; the build version preserves the canonical Cargo form for Sparkle comparisons. Documentation localization does not imply localized UI strings.
+After the audit, the versions were unified: [Cargo.toml](../Cargo.toml) supplies `26.9.101928`, and [packaging](../scripts/build_and_run.sh) reads the CLI version from Cargo metadata for the GUI. The GUI displays `26.9.101928`; the build version preserves the canonical Cargo form for Sparkle comparisons. Documentation localization does not imply localized UI strings.
 
 ## GUI language state
 

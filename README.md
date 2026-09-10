@@ -152,7 +152,7 @@ cargo run -p harbor-cli -- --help
 swift test --package-path apps/Harbor --scratch-path target/swift-harbor
 ```
 
-Release labels use `vYY.M.DHHmm`, currently `v26.9.101853`. Cargo, CLI, GUI, build metadata and asset names all use `26.9.101853`, derived from Cargo metadata. Month/day have no leading zero; the time suffix is four-digit `HHmm`. The package declares MIT licensing. Local ad-hoc packaging is not a notarized distribution release. [Testing](docs/TESTING.md) separates current checks from historical client experiments and outstanding account/GUI validation. `SOURCE_CHECKS.txt` is a historical snapshot, not current acceptance evidence.
+Release labels use `vYY.M.DHHmm`, currently `v26.9.101928`. Cargo, CLI, GUI, build metadata and asset names all use `26.9.101928`, derived from Cargo metadata. Month/day have no leading zero; the time suffix is four-digit `HHmm`. The package declares MIT licensing. Local ad-hoc packaging is not a notarized distribution release. [Testing](docs/TESTING.md) separates current checks from historical client experiments and outstanding account/GUI validation. `SOURCE_CHECKS.txt` is a historical snapshot, not current acceptance evidence.
 
 Download the macOS 14+ Apple Silicon DMG from [GitHub Releases](https://github.com/fynntang/harbor/releases), open it and drag Harbor.app into Applications. ZIP is also available. It uses Release builds with local ad-hoc signatures and is not notarized. See [release builds and signing](docs/GUI.md#release-build) for installation, free distribution and the separate Developer ID path.
 
