@@ -37,8 +37,14 @@ struct HarborApp: App {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-  weak var store: HarborStore?
+  weak var store: HarborStore? {
+    didSet { store?.checkOfficialVersion() }
+  }
+  private var officialVersionTimer: Timer?
   func applicationDidFinishLaunching(_ notification: Notification) {
+    officialVersionTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+      Task { @MainActor in self?.store?.checkOfficialVersion() }
+    }
     NSApp.setActivationPolicy(.regular)
     if let url = Bundle.main.url(forResource: "Harbor", withExtension: "icns"),
       let icon = NSImage(contentsOf: url)

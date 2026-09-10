@@ -20,6 +20,16 @@ final class HarborStore {
   var iconRevision = 0
   var removalNotice: GUIMessage?
   var retainedData: String?
+  var officialVersion: OfficialAppVersion?
+
+  func checkOfficialVersion() {
+    guard !busy else { return }
+    officialVersion = OfficialAppVersion.read(at: OfficialAppVersion.defaultURL)
+  }
+
+  func updateAvailable(for item: ProfileItem) -> Bool {
+    officialVersion?.isNewer(than: item) == true
+  }
 
   init(client: HarborClient, language: GUILocalization = GUILocalization()) {
     self.client = client
@@ -29,6 +39,7 @@ final class HarborStore {
 
   private func load() async throws {
     let result: ProfileList = try await client.request(["list"])
+    officialVersion = OfficialAppVersion.read(at: OfficialAppVersion.defaultURL)
     profiles = result.profiles
     registry = result.root
     if !profiles.contains(where: { $0.id == selection }) { selection = profiles.first?.id }

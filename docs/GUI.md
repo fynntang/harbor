@@ -143,6 +143,8 @@ The creation form accepts 1–48 Unicode characters, including Chinese, uppercas
 
 After updating the official app, quit the copy and all helpers, including browser integrations. Select **Update Copy…** in the app details, check the source path/version and confirm. The source defaults to `/Applications/ChatGPT.app`; a different official app may be selected. Harbor does not quit browsers or start the updated copy automatically. If helpers remain, use Clean Up Helpers to disconnect only that instance’s browser integration, then refresh. For managed copies, cleanup temporarily saves and removes Brave, Chrome and Edge native-host registrations pointing to that instance; launching through Harbor restores them if no other instance has registered there.
 
+Harbor checks the local official app at `/Applications/ChatGPT.app` on refresh and every 60 seconds while Harbor runs (including with its main window closed). Managed copies whose readable current numeric build is older show an update badge in the sidebar, a menu-bar menu entry and a version notice in details. Stop the copy or clean up helpers before using the existing update action. Missing/invalid source metadata clears the notice; equal or older builds do not trigger it. This checks the installed official app, not online releases or custom source locations. Signature validation still occurs during the actual update. No copy is automatically updated.
+
 ```bash
 harbor update work --source /Applications/ChatGPT.app
 ```

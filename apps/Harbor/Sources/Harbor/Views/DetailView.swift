@@ -35,6 +35,19 @@ struct DetailView: View {
           Text(store.text("副本已退出，但辅助进程仍在运行。清理残留会暂停该实例的浏览器连接并请求已知辅助进程退出，不会退出浏览器；通过 Harbor 启动副本时恢复连接注册。"))
             .font(.callout).foregroundStyle(.orange)
         }
+        if store.updateAvailable(for: item), let official = store.officialVersion {
+          GroupBox {
+            VStack(alignment: .leading, spacing: 10) {
+              Label(store.text("官方原版有更新"), systemImage: "arrow.down.circle.fill")
+                .font(.headline).foregroundStyle(.blue)
+              Text("\(official.version) (\(official.build))")
+              Text(store.text("请先停止副本或清理残留，再更新副本。账号数据、名称和图标会保留。"))
+                .font(.callout)
+              Button(store.text("更新副本…")) { updating = true }
+                .disabled(store.busy || item.issue != nil || item.status.state != "stopped")
+            }.frame(maxWidth: .infinity, alignment: .leading).padding(8)
+          }
+        }
         GroupBox(store.text("应用")) {
           VStack(alignment: .leading, spacing: 12) {
             LabeledContent(store.text("实例标识"), value: item.id)

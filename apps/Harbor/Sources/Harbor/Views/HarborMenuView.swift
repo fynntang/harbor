@@ -12,6 +12,12 @@ struct HarborMenuView: View {
       store.creating = true
     }
     .disabled(store.busy)
+    if store.profiles.contains(where: { store.updateAvailable(for: $0) }) {
+      Button(store.text("官方原版有更新"), systemImage: "arrow.down.circle.fill") {
+        store.selection = store.profiles.first(where: { store.updateAvailable(for: $0) })?.id
+        showWindow()
+      }
+    }
     LanguagePicker(language: store.language)
     HarborUpdateMenu(store: store, updater: updater)
     if store.busy {

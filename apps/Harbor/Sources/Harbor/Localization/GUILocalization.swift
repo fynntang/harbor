@@ -165,6 +165,8 @@ final class GUILocalization {
     "未知构建号": "unknown build",
     "未记录构建号": "build not recorded",
     "更新副本 %@": "Update copy %@",
+    "官方原版有更新": "Official app update available",
+    "请先停止副本或清理残留，再更新副本。账号数据、名称和图标会保留。": "Stop the copy or clean up its helpers before updating. Account data, name and icons are preserved.",
     "更新副本…": "Update Copy…",
     "更新副本": "Update Copy",
     "来源版本": "Source Version",

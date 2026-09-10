@@ -20,7 +20,15 @@ struct ContentView: View {
           ForEach(store.profiles) { item in
             Label {
               VStack(alignment: .leading, spacing: 3) {
-                Text(item.profile.displayName).fontWeight(.medium)
+                HStack {
+                  Text(item.profile.displayName).fontWeight(.medium)
+                  if store.updateAvailable(for: item) {
+                    Image(systemName: "arrow.down.circle.fill")
+                      .foregroundStyle(.blue)
+                      .help(store.text("官方原版有更新"))
+                      .accessibilityLabel(store.text("官方原版有更新"))
+                  }
+                }
                 Text(item.issue == nil ? store.text(key: item.status.title) : store.text("需要检查"))
                   .font(.caption).foregroundStyle(.secondary)
               }
