@@ -43,7 +43,7 @@ pub fn clone_profile_with_progress(
         destination,
         cwd,
         pass_env,
-        |original, staged, profile| prepare_bundle(original, staged, profile, &mut progress),
+        |original, staged, profile| prepare_bundle(original, staged, profile, &mut progress, None),
     )?;
     progress("complete");
     Ok(profile)
@@ -200,7 +200,7 @@ pub(crate) fn checked(command: &mut Command, action: &str) -> Result<Output> {
     Ok(output)
 }
 
-fn verify_vendor(app: &Path) -> Result<()> {
+pub(crate) fn verify_vendor(app: &Path) -> Result<()> {
     checked(
         Command::new("/usr/bin/codesign")
             .args(["--verify", "--deep", "--strict", "-R", VENDOR_REQUIREMENT])
@@ -210,11 +210,12 @@ fn verify_vendor(app: &Path) -> Result<()> {
     Ok(())
 }
 
-fn prepare_bundle(
+pub(crate) fn prepare_bundle(
     original: &AppInfo,
     staged: &Path,
     profile: &Profile,
     progress: &mut impl FnMut(&str),
+    icons_from: Option<&Path>,
 ) -> Result<()> {
     progress("verify_source");
     verify_vendor(&original.bundle)?;
@@ -298,6 +299,9 @@ fn prepare_bundle(
     preserve_original_icon(staged)?;
     progress("sign");
     patch_info(staged, profile)?;
+    if let Some(previous) = icons_from {
+        crate::update::preserve_icons(previous, staged)?;
+    }
     // Keep nested vendor code intact. Only the outer copy is signed locally;
     // library validation is relaxed for its vendor-signed frameworks, while the
     // remaining hardened-runtime protections and supported permissions are kept.

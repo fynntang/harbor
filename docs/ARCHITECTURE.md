@@ -91,7 +91,7 @@ Removal requires no scanned processes, `adopted_data=false`, the Harbor-style ID
 
 Text `status` and the process section of `doctor` inspect main processes only. JSON status/list can report `helpers_running`; their `pids` field still lists only main processes. None reads login identity or verifies a running process's environment. `doctor` fails on path/metadata/identity/signature errors, but version differences, absent old build snapshots and reported launch conflicts alone do not set the diagnostic failure flag. JSON doctor wraps a completed failed diagnosis with `ok=true`, exit 0 and `data.passed=false`; store setup errors still fail the envelope.
 
-The system does not isolate HOME, Keychain, repositories, system permissions or all Skills/MCP storage. It does not implement OAuth callback routing, official updates, account/database migration or arbitrary client support. It cannot stop clients from following configuration paths outside routed data directories.
+The system does not isolate HOME, Keychain, repositories, system permissions or all Skills/MCP storage. It does not implement OAuth callback routing, automatic official updates, account/database migration or arbitrary client support. It cannot stop clients from following configuration paths outside routed data directories.
 
 ## Documentation audit, 2026-09-08
 
@@ -106,11 +106,15 @@ These differences were resolved in documentation, without changing program behav
 | Direct app launch has no profile routing | Clone has LSEnvironment, but direct launch bypasses Harbor validation/allowlist. |
 | Text/JSON state and GUI/CLI icon guards are interchangeable | Main-only vs auxiliary-aware checks are documented separately. |
 | Prepared/adopted apps are vendor-verified | Vendor trust verification belongs to clone; create/adopt inspect layout/metadata. |
-| One current version and no Python requirement | Versions now share Cargo `0.0.1`; GUI build number remains `1`; packaging uses Python 3. |
+| One current version and no Python requirement | Versions derive from Cargo calendar version `26.9.101046`; packaging uses Python 3. |
 | Old experiment paths and historical tests read as current prerequisites/results | Examples are generic; [Testing](TESTING.md) separates fresh checks and historical evidence. |
 
-After the audit, the versions were unified: [Cargo.toml](../Cargo.toml) supplies `0.0.1`, and [packaging](../scripts/build_and_run.sh) reads the CLI version from Cargo metadata for the GUI. The independent macOS build number remains `1`. Documentation localization does not imply localized UI strings.
+After the audit, the versions were unified: [Cargo.toml](../Cargo.toml) supplies `26.9.101046`, and [packaging](../scripts/build_and_run.sh) reads the CLI version from Cargo metadata for the GUI. The GUI displays `26.9.101046`; the build version preserves the canonical Cargo form for Sparkle comparisons. Documentation localization does not imply localized UI strings.
 
 ## GUI language state
 
 The GUI owns one observable `GUILocalization` in `HarborStore`. `UserDefaults` stores the selected language. `GUIMessage` retains a template and separate arguments, so existing progress, success and GUI error messages can be rendered again when the language changes. Backend errors are explicitly verbatim. The compiled catalog and language picker live in `apps/Harbor/Sources/Harbor/Localization/GUILocalization.swift` and `apps/Harbor/Sources/Harbor/Views/LanguagePicker.swift`; they do not change CLI protocol or profile storage.
+
+## Managed copy update
+
+`update` holds the registry lock, verifies the existing identity/version and stopped state, then prepares a vendor-verified replacement with the existing profile identity and new version snapshot. It checks all app/data helper processes before staging and immediately before publication. Custom icons are carried forward before signing. The app is atomically exchanged, its final signature verified, and a flushed temporary manifest atomically replaces `profile.json`. Failure before manifest publication swaps the old app back; rollback failure retains staging and reports its path. The app/manifest pair is not a single filesystem transaction: interruption between the two writes leaves a detectable version mismatch and requires inspection. No account database is backed up or rolled back.

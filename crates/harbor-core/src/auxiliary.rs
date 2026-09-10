@@ -79,14 +79,28 @@ pub fn stop_orphans(profile: &Profile) -> Result<()> {
         process::find_running(&profile.executable)?.is_empty(),
         "Main app is still running; helper cleanup was not attempted"
     );
+    let mut blocked = Vec::new();
     for pid in running(profile)? {
         let pid = i32::try_from(pid)?;
         let Some(identity) = inspect(pid) else {
             continue;
         };
         // SAFETY: geteuid has no preconditions.
-        ensure!(identity.uid == unsafe { libc::geteuid() } && identity.parent == 1 && known(profile, &identity.path),
-            "An unknown or active helper remains (PID {pid}); quit it manually before deleting this instance");
+        if identity.uid != unsafe { libc::geteuid() }
+            || identity.parent != 1
+            || !known(profile, &identity.path)
+        {
+            blocked.push(format!(
+                "PID {pid}, parent PID {}, {}",
+                identity.parent,
+                identity
+                    .path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+            ));
+            continue;
+        }
         // Recheck the current executable, owner, parent and process birth time immediately before SIGTERM.
         // This is not a saved PID file and never falls back to SIGKILL.
         if inspect(pid).as_ref() != Some(&identity) {
@@ -100,6 +114,9 @@ pub fn stop_orphans(profile: &Profile) -> Result<()> {
             }
         }
     }
+    ensure!(blocked.is_empty(),
+        "Active or unrecognized helpers remain: {}. Quit their owning app (for browser integration, quit the browser), then retry cleanup. Update and deletion remain blocked",
+        blocked.join("; "));
     Ok(())
 }
 #[cfg(not(target_os = "macos"))]
@@ -173,10 +190,6 @@ mod tests {
         let checked = stop_orphans(&p);
         let live = child.try_wait().unwrap();
         let observed = running(&p).unwrap();
-        if live.is_none() {
-            child.kill().unwrap();
-            child.wait().unwrap();
-        }
         assert!(live.is_none(), "test child exited early: {live:?}");
         assert!(
             checked.is_err(),
@@ -202,16 +215,21 @@ mod tests {
             assert!(Instant::now() < deadline, "test orphan did not launch");
             thread::sleep(Duration::from_millis(20));
         }
-        loop {
-            if stop_orphans(&p).is_ok() {
-                break;
-            }
-            assert!(Instant::now() < deadline, "test orphan did not detach");
-            thread::sleep(Duration::from_millis(20));
-        }
         while running(&p).unwrap().contains(&pid) {
-            assert!(Instant::now() < deadline, "test orphan did not exit");
+            let error = stop_orphans(&p).unwrap_err().to_string();
+            assert!(error.contains(&format!("PID {}", child.id())));
+            assert!(error.contains("parent PID"));
+            assert!(
+                Instant::now() < deadline,
+                "test orphan did not exit beside active helper"
+            );
             thread::sleep(Duration::from_millis(20));
         }
+        assert!(
+            child.try_wait().unwrap().is_none(),
+            "active helper must survive cleanup"
+        );
+        child.kill().unwrap();
+        child.wait().unwrap();
     }
 }

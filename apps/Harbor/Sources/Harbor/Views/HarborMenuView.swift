@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HarborMenuView: View {
   let store: HarborStore
+  @ObservedObject var updater: HarborUpdater
   @Environment(\.openWindow) private var openWindow
 
   var body: some View {
@@ -12,6 +13,7 @@ struct HarborMenuView: View {
     }
     .disabled(store.busy)
     LanguagePicker(language: store.language)
+    HarborUpdateMenu(store: store, updater: updater)
     if store.busy {
       Divider()
       Text(store.text(store.activity))

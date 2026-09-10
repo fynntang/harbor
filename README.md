@@ -85,6 +85,7 @@ Unlike `clone`, neither `create` nor `adopt` prepares a bundle or verifies vendo
 | Command | Current behavior |
 |---|---|
 | `clone` | Create a locally signed copy and new empty profile. |
+| `update` | Update a stopped managed copy from the official app; retain identity, icons and account paths. |
 | `create` / `adopt` | Register a prepared app with new / existing data. |
 | `list` / `show` | List registrations / show routing metadata. |
 | `start` | Validate identity/version, route data and launch detached; detect duplicate launches. |
@@ -101,6 +102,7 @@ Common invocations:
 ```bash
 harbor list
 harbor show work
+harbor update work --source /Applications/ChatGPT.app
 harbor logs work -n 80
 harbor shortcut work --output "$HOME/Desktop/ChatGPT Work.command"
 harbor icon work --image /absolute/path/icon.png --tray-image /absolute/path/tray.png
@@ -131,7 +133,7 @@ This is a one-run exception, not a manifest update or database migration. It doe
 
 Launch through Harbor to retain these checks. A clone also has `LSEnvironment` values for Launch Services, but double-clicking its `.app` bypasses Harbor's validation and allowlist. `create`/`adopt` do not patch those values.
 
-Harbor does not manage official updates, arbitrate OAuth URL callbacks, isolate all Skills/MCP storage, prevent access to other projects, or rewrite client configuration overrides. The two desktop-specific `CODEX_*` switches are version-dependent compatibility controls. `remove` may move account directories as a unit; Harbor does not parse or copy credential contents.
+Harbor does not automatically download official client updates, arbitrate OAuth URL callbacks, isolate all Skills/MCP storage, prevent access to other projects, or rewrite client configuration overrides. The two desktop-specific `CODEX_*` switches are version-dependent compatibility controls. `remove` may move account directories as a unit; Harbor does not parse or copy credential contents.
 
 ## Development and documentation
 
@@ -150,8 +152,10 @@ cargo run -p harbor-cli -- --help
 swift test --package-path apps/Harbor --scratch-path target/swift-harbor
 ```
 
-The CLI, core package and GUI app version are `0.0.1`. GUI packaging reads the CLI package version from Cargo metadata; its independent macOS build number is `1`. The package declares MIT licensing. Local ad-hoc packaging is not a notarized distribution release. [Testing](docs/TESTING.md) separates current checks from historical client experiments and outstanding account/GUI validation. `SOURCE_CHECKS.txt` is a historical snapshot, not current acceptance evidence.
+Release labels use `vYY.M.DHHmm`, currently `v26.9.101046`. Cargo, CLI, GUI, build metadata and asset names all use `26.9.101046`, derived from Cargo metadata. Month/day have no leading zero; the time suffix is four-digit `HHmm`. The package declares MIT licensing. Local ad-hoc packaging is not a notarized distribution release. [Testing](docs/TESTING.md) separates current checks from historical client experiments and outstanding account/GUI validation. `SOURCE_CHECKS.txt` is a historical snapshot, not current acceptance evidence.
 
 Download the macOS 14+ Apple Silicon DMG from [GitHub Releases](https://github.com/fynntang/harbor/releases), open it and drag Harbor.app into Applications. ZIP is also available. It uses Release builds with local ad-hoc signatures and is not notarized. See [release builds and signing](docs/GUI.md#release-build) for installation, free distribution and the separate Developer ID path.
 
 The GUI can generate instance icons from the official icon with a colored name badge and monochrome menu-bar initials. Creation previews the badge; existing stopped copies can use **Change Icon → Original with Badge**.
+
+Harbor release builds support signed automatic update checks through GitHub Releases, with confirmation before installation. Existing 0.0.1 users need one manual upgrade. See [automatic updates and publishing](docs/GUI.md#harbor-automatic-updates).

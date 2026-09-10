@@ -205,7 +205,7 @@ fn resize(source: &Path, destination: &Path, pixels: u32) -> Result<()> {
     )?;
     Ok(())
 }
-fn patch_info(info: &mut plist::Dictionary) {
+pub(crate) fn patch_info(info: &mut plist::Dictionary) {
     info.remove("CFBundleIconName");
     info.insert(
         "CFBundleIconFile".into(),
@@ -243,7 +243,7 @@ fn validate_png(bytes: &[u8]) -> Result<()> {
     );
     Ok(())
 }
-fn exchange(a: &Path, b: &Path) -> Result<()> {
+pub(crate) fn exchange(a: &Path, b: &Path) -> Result<()> {
     #[cfg(target_os = "macos")]
     {
         use std::os::unix::ffi::OsStrExt;

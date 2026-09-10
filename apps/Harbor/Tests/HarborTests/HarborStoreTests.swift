@@ -54,6 +54,30 @@ final class HarborStoreTests: XCTestCase, @unchecked Sendable {
   }
 
   @MainActor
+  func testUpdateUsesStableIdentifierAndDoesNotLaunch() async throws {
+    let fixture = try Fixture()
+    defer { fixture.remove() }
+    let store = HarborStore(client: HarborClient(executable: fixture.cli))
+    await store.create(name: "work", source: "/Applications/Original.app")
+    let item = try XCTUnwrap(store.selected)
+    let updated = await store.update(item: item, source: "/Applications/Original.app")
+    XCTAssertTrue(updated)
+    XCTAssertNil(store.error)
+    XCTAssertEqual(store.selection, "work")
+    XCTAssertEqual(store.selected?.status.state, "stopped")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.dir.appendingPathComponent("started").path))
+    try Data().write(to: fixture.dir.appendingPathComponent("fail-update"))
+    let failed = await store.update(item: item, source: "/Applications/Original.app")
+    XCTAssertFalse(failed)
+    XCTAssertNotNil(store.error)
+    XCTAssertFalse(store.busy)
+    await store.start()
+    let running = try XCTUnwrap(store.selected)
+    let refused = await store.update(item: running, source: "/Applications/Original.app")
+    XCTAssertFalse(refused)
+  }
+
+  @MainActor
   func testCreatedCopyGetsBadgeBeforeFlowFinishes() async throws {
     let fixture = try Fixture()
     defer { fixture.remove() }
@@ -160,6 +184,31 @@ final class HarborStoreTests: XCTestCase, @unchecked Sendable {
   }
 
   @MainActor
+  func testDirectQuitHelpersAndFailedCleanupRefreshState() async throws {
+    let fixture = try Fixture()
+    defer { fixture.remove() }
+    let store = HarborStore(client: HarborClient(executable: fixture.cli))
+    await store.create(name: "work", source: "/Applications/Original.app")
+    await store.start()
+    try FileManager.default.removeItem(at: fixture.dir.appendingPathComponent("started"))
+    try Data().write(to: fixture.dir.appendingPathComponent("helpers"))
+    await store.refresh()
+    XCTAssertEqual(store.selected?.status.state, "helpers_running")
+    try Data().write(to: fixture.dir.appendingPathComponent("refuse-stop"))
+    try FileManager.default.removeItem(at: fixture.dir.appendingPathComponent("helpers"))
+    await store.stop()
+    XCTAssertEqual(store.selected?.status.state, "stopped")
+    XCTAssertNotNil(store.error)
+    XCTAssertFalse(store.busy)
+    try FileManager.default.removeItem(at: fixture.dir.appendingPathComponent("refuse-stop"))
+    try Data().write(to: fixture.dir.appendingPathComponent("helpers"))
+    await store.refresh()
+    await store.stop()
+    XCTAssertEqual(store.selected?.status.state, "stopped")
+    XCTAssertNil(store.error)
+  }
+
+  @MainActor
   func testQuitRefusalNeverCallsRemove() async throws {
     let fixture = try Fixture()
     defer { fixture.remove() }
@@ -204,11 +253,21 @@ private struct Fixture {
         list)
           if [ -f created ]; then
             state=stopped
+            if [ -f helpers ]; then state=helpers_running; fi
             if [ -f started ]; then state=running; fi
             printf '{"api_version":1,"ok":true,"data":{"root":"/test","profiles":[{"profile":%s,"status":{"state":"%s","pids":[]},"current_version":"1","current_build":"1"}]}}\n' "$profile" "$state"
           else
             printf '{"api_version":1,"ok":true,"data":{"root":"/test","profiles":[]}}\n'
           fi
+          ;;
+        update)
+          test "$3" = work || exit 5
+          test "$4" = --source || exit 6
+          if [ -f fail-update ]; then
+            printf '{"api_version":1,"ok":false,"error":"Update failed"}\n'
+            exit 1
+          fi
+          printf '{"api_version":1,"ok":true,"data":{"profile":%s}}\n' "$profile"
           ;;
         start)
           test "$3" = work || exit 5
@@ -222,7 +281,7 @@ private struct Fixture {
             printf '{"api_version":1,"ok":false,"error":"Quit cancelled"}\n'
             exit 1
           fi
-          rm -f started
+          rm -f started helpers
           printf '{"api_version":1,"ok":true,"data":{"state":"stopped"}}\n'
           ;;
         remove)

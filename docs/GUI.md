@@ -36,6 +36,7 @@ Backend diagnostics, CLI help, technical reports and system-owned menu/dialog te
 | Control | Behavior |
 |---|---|
 | 创建副本 / Create copy | Choose an official source and a new name; calls `clone`. No GUI `create`/`adopt` form. |
+| 更新副本 / Update Copy | Update a stopped managed app from the selected official source, preserving identity, icons and account paths. |
 | 启动 / Start | Calls `start`; disables when the inspected app has an issue or launch conflict. |
 | 停止 / Stop | Available for `running` or `helpers_running`; requests normal quit. |
 | 删除实例… / Delete instance | Shows scope confirmation for eligible managed copies. Always calls `stop` before `remove`. |
@@ -44,7 +45,7 @@ Backend diagnostics, CLI help, technical reports and system-owned menu/dialog te
 | 刷新 / Refresh | Reloads registrations/state; also runs on window activation and ⌘R. |
 | Folder controls | Reveal paths in Finder. The log-directory button currently reveals the parent of `codex_home`; for adopted data that may differ from Harbor's log directory. |
 
-Mutating operations and refresh are serialized by the store's busy state. Errors are shown without assuming success. App identity or version differences are flagged as needing inspection. The GUI has no `--accept-version-change`, environment-variable editor, updater or restore button. An invalid registry entry can fail the entire list operation; this is not a repair UI.
+Mutating operations and refresh are serialized by the store's busy state. Errors are shown without assuming success. App identity or version differences are flagged as needing inspection. The GUI has no `--accept-version-change`, environment-variable editor or restore button. An invalid registry entry can fail the entire list operation; this is not a repair UI.
 
 The top sailboat menu opens Harbor, creates a copy or quits Harbor. The main window uses a stable value to reuse it. Closing all windows retains the menu item; normal quit is blocked while an operation is busy. Launched clients remain independent. There is no login item, launchd daemon or periodic polling.
 
@@ -84,12 +85,12 @@ Retained `profile.json` still records the original paths. To restore, first quit
 
 [HarborClient](../apps/Harbor/Sources/Harbor/Services/HarborClient.swift) invokes `Contents/Helpers/harbor` with separate argv entries, without a shell. stdout/stderr are drained concurrently off the UI thread. [HarborStore](../apps/Harbor/Sources/Harbor/Stores/HarborStore.swift) owns operation order; Rust remains responsible for filesystem and process checks. [HarborNative](../apps/Harbor/Sources/HarborNative/NativeOperations.swift) handles normal application quit and Trash.
 
-`--json` supports `list`, `show`, `status`, `clone`, `icon`, `start`, `stop`, `remove`, `doctor`. It does not support `create`, `adopt`, `logs` or `shortcut`. [json.rs](../crates/harbor-cli/src/json.rs) defines the protocol:
+`--json` supports `list`, `show`, `status`, `clone`, `update`, `icon`, `start`, `stop`, `remove`, `doctor`. It does not support `create`, `adopt`, `logs` or `shortcut`. [json.rs](../crates/harbor-cli/src/json.rs) defines the protocol:
 
 - stdout: one object with `api_version: 1`, `ok`, and either `data` or `error`.
 - Ordinary operation error: exit 1. Clap syntax errors: stderr and exit 2, not a JSON envelope.
 - `doctor`: when store setup succeeds, even a failed diagnosis is a successful envelope/exit 0 with `data.passed=false`; inspect that field. Version/conflict warnings alone need not set it false.
-- Clone progress: stderr JSON lines containing `event: progress` and `stage`.
+- Clone/update progress: stderr JSON lines containing `event: progress` and `stage`.
 - JSON status: `running`, `stopped`, `helpers_running`, `conflict`; list may report `unknown` on a process-inspection error. `pids` contains main-process IDs only, even for `helpers_running`.
 
 Finder-launched Harbor does not source terminal shell configuration. Environment values exported only in a terminal will not automatically be available to its child instances. See [routing and environment](ARCHITECTURE.md#environment).
@@ -137,3 +138,48 @@ GUI creation performs `clone` followed by `icon`; these are separate operations.
 ## Display names and identifiers
 
 The creation form accepts 1–48 Unicode characters, including Chinese, uppercase/lowercase letters, spaces and parentheses, without control characters or surrounding whitespace. The full display name appears in the list, details, confirmation dialogs and generated badges. The details show the separate instance identifier and Bundle ID. ASCII names matching the old letter/digit/hyphen syntax become lowercase identifiers; other names receive an ASCII prefix (or `profile`) and a random suffix. The identifier is fixed at creation and used for app filenames, data paths and CLI operations. Existing profiles fall back to their original name; their paths and Bundle IDs are not rewritten. Renaming existing instances is not part of this feature.
+
+## Update a copy from the official app
+
+After updating the official app, quit the copy and all helpers, including browser integrations. Select **Update Copy…** in the app details, check the source path/version and confirm. The source defaults to `/Applications/ChatGPT.app`; a different official app may be selected. Harbor does not quit browsers or start the updated copy automatically. If helpers remain, fully quit the browser using that instance's extension and refresh.
+
+```bash
+harbor update work --source /Applications/ChatGPT.app
+```
+
+Only managed, non-adopted copies with matching registered identity/version and Harbor-owned data paths are eligible. A higher numeric build is required; identical short/build versions are a no-op. Downgrades and executable-layout changes are rejected. Source/copy signatures and compatibility markers are checked. The existing name, Bundle ID, app path, environment choices and data paths are preserved. Custom icon assets are copied; pristine copies get the new official icon. The original-icon snapshot is refreshed from the new official source.
+
+Account directories are not copied, deleted or migrated by this operation. The new client may migrate databases on first launch; this is not a database backup or automatic rollback facility. Ordinary preparation/verification/manifest-publication errors restore the old app. A crash or failed rollback can leave a `.harbor-update-*` staging directory beside the app: preserve it and inspect both app and manifest versions before recovery. Do not bypass a version mismatch with `--accept-version-change` as an update procedure.
+
+### Helpers after quitting the copy directly
+
+Quitting the copy with Cmd-Q can leave helper processes running. Returning to Harbor or refreshing detects them as **Helpers still running**; **Clean Up Helpers** uses the same safe cleanup as `harbor stop <id>`. Known orphaned helpers receive SIGTERM even when another helper cannot be cleaned up. Active or unrecognized processes are preserved and reported with their name, PID and parent PID. For browser integration, quit the owning browser and retry. Cleanup failures refresh the displayed state; updates and deletion remain blocked while helpers exist. Harbor does not automatically terminate helpers on refresh.
+
+## Harbor automatic updates
+
+Release builds embed Sparkle 2.9.6. **Harbor → Check for Harbor Updates…** and the menu-bar menu offer manual checks and an **Automatically Check for Harbor Updates** toggle. Automatic checks default to once a day while Harbor runs; installation requires confirmation. Sparkle downloads, verifies, replaces Harbor and relaunches it. Checks are refused during a Harbor operation, relaunch is postponed until idle, and the normal termination guard remains active. Managed client copies and account directories are not updated by this mechanism. Debug builds disable the updater. Harbor menu labels follow the selected language; Sparkle's own standard dialogs follow the system's supported language.
+
+The stable feed is `https://github.com/fynntang/harbor/releases/latest/download/appcast.xml`. Drafts and prereleases are not this channel. Both the feed and ZIP must carry valid Ed25519 signatures using the public key in `config/sparkle-public-key.txt`. Invalid signatures block installation; verification happens before extraction. Failed network checks do not replace the app. Updates require a greater workspace version; both macOS version fields use the same Cargo version. The currently published 0.0.1 has no updater: users must install an updater-enabled release manually once. Until a stable release includes the feed, manual checks can report that the feed is unavailable.
+
+### Prepare and publish an update
+
+The signing key is stored in the macOS login Keychain under Sparkle's service and account `local.harbor.desktop`. Only the public key belongs in Git. Keep a secure backup of this signing identity before changing machines; losing it prevents existing ad-hoc installations from trusting future updates. Do not generate a new key for each release. CI checks packaging but does not have this private key and does not publish updates.
+
+1. Increase the calendar version in Cargo metadata and update Cargo.lock (for example, `26.9.101046` → `26.9.101047`). Keep the already published tags/assets immutable.
+2. Build a release, then package the DMG and signed update in a fresh directory:
+
+```sh
+./scripts/build_and_run.sh --release-adhoc
+python3 scripts/package_dmg.py dist/release-adhoc/Harbor.app --output-dir dist/next-release
+python3 scripts/package_update.py dist/release-adhoc/Harbor.app --output-dir dist/next-release
+```
+
+For Developer ID builds, use `--release-only` and pass the signing team through `package_update.py --team TEAM_ID`; notarize/staple the final app before packaging. Ed25519 update signing does not replace Developer ID signing or notarization. The current DMG packager validates ad-hoc builds only.
+
+3. Validate the artifacts and install/relaunch on a test Mac, then attach the generated ZIP, DMG, `appcast.xml`, and `SHA256SUMS.txt` to the matching `v<version>` GitHub Release. Publish as a stable release and mark it latest. Upload all assets while the release is still a draft; publish only after they are complete. The stable URL then resolves to the new signed feed. Never modify signed XML or ZIP bytes after signing.
+
+`package_update.py` checks the final bundle, embedded key/feed/version and Keychain key match, signs and verifies both ZIP and feed, then writes checksums. It does not upload, change Git tags or export private keys. See [Sparkle documentation](https://sparkle-project.org/documentation/) for updater behavior and signing-key recovery limitations.
+
+### Calendar release labels
+
+Tags use `vYY.M.DHHmm`, based on the release's Asia/Shanghai date and 24-hour time. Month and day have no leading zero; the final time always has four digits. September 1 at midnight is `v26.9.10000`; September 10 at 11:56 is `v26.9.101156`. `0000` is a valid midnight time. No digit-sum encoding is used. Cargo is the source of truth, and GUI, CLI, build version, appcast and asset names use the same numeric version (only tags have `v`). The current configured version is `26.9.101046` (2026-09-10 10:46). `scripts/version.py` validates dates, leap years and hours/minutes. Numeric component comparisons preserve minute/hour/day/month/year order; raw lexicographic string sorting is not suitable. Only one release per minute can have a unique label: wait for the next minute rather than reusing a tag. Supported years are 2000–2099. Set the version at release preparation time and update Cargo.lock; builds do not change it automatically.

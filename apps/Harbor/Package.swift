@@ -8,8 +8,13 @@ let package = Package(
     .executable(name: "Harbor", targets: ["Harbor"]),
     .executable(name: "harbor-native", targets: ["HarborNative"]),
   ],
+  dependencies: [.package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.9.6")],
   targets: [
-    .executableTarget(name: "Harbor"),
+    .executableTarget(
+      name: "Harbor",
+      dependencies: [.product(name: "Sparkle", package: "Sparkle")],
+      linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
+    ),
     .executableTarget(name: "HarborNative"),
     .testTarget(name: "HarborTests", dependencies: ["Harbor", "HarborNative"]),
   ]

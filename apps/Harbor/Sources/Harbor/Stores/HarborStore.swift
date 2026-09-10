@@ -73,6 +73,30 @@ final class HarborStore {
     } catch { self.error = GUIMessage(error: error) }
   }
 
+  func update(item: ProfileItem, source: String) async -> Bool {
+    guard !busy, item.profile.supportsCustomIcon, item.status.state == "stopped" else { return false }
+    busy = true
+    activity = "正在准备更新…"
+    error = nil
+    message = ""
+    report = nil
+    defer { busy = false }
+    do {
+      let result: CreatedProfile = try await client.request(["update", item.id, "--source", source]) {
+        [weak self] stage in
+        Task { @MainActor in self?.activity = Self.stageTitle(stage) }
+      }
+      selection = result.profile.name
+      iconRevision += 1
+      message = "副本已更新，账号目录保持不变。点击启动后使用新版。"
+      try await load()
+      return true
+    } catch {
+      self.error = GUIMessage(error: error)
+      return false
+    }
+  }
+
   func start() async {
     guard !busy, let selected else { return }
     busy = true
@@ -106,7 +130,10 @@ final class HarborStore {
       }
       message = "实例已停止，账号数据保留。"
       try await load()
-    } catch { self.error = GUIMessage(error: error) }
+    } catch {
+      self.error = GUIMessage(error: error)
+      try? await load()
+    }
   }
 
   func remove(item: ProfileItem, deleteData: Bool) async -> Bool {

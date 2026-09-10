@@ -100,6 +100,12 @@ final class GUILocalization {
     "会先请求正常退出。退出被取消、超时或仍有辅助进程运行时，不会删除。":
       "Harbor will request a normal quit first. Removal stops if quitting is cancelled, times out or leaves helpers running.",
     "例如 work": "e.g. work",
+    "清理残留": "Clean Up Helpers",
+    "副本已退出，但辅助进程仍在运行。清理残留只会请求已知的孤立进程退出；浏览器扩展仍在使用的进程需要先退出对应浏览器，再刷新或重试。": "The copy has quit, but helpers are still running. Cleanup only requests known orphaned processes to exit. If a browser extension still uses a helper, quit that browser, then refresh or retry.",
+    "检查 Harbor 更新…": "Check for Harbor Updates…",
+    "自动检查 Harbor 更新": "Automatically Check for Harbor Updates",
+    "开发版未启用自动更新": "Automatic updates are disabled in development builds",
+    "请等当前操作完成后再更新 Harbor。": "Wait for the current operation to finish before updating Harbor.",
     "停止": "Stop",
     "停止并删除": "Stop and Remove",
     "创建副本": "Create Copy",
@@ -158,6 +164,18 @@ final class GUILocalization {
     "未运行": "Stopped",
     "未知构建号": "unknown build",
     "未记录构建号": "build not recorded",
+    "更新副本 %@": "Update copy %@",
+    "更新副本…": "Update Copy…",
+    "更新副本": "Update Copy",
+    "来源版本": "Source Version",
+    "正在准备更新…": "Preparing update…",
+    "请先退出副本及其辅助进程，再从官方原版更新": "Quit the copy and its helpers before updating from the official app",
+    "保留账号数据、名称和图标。请先退出副本及浏览器辅助进程；更新完成后不会自动启动。":
+      "Keep account data, name and icons. Quit the copy and browser helpers first; the updated copy will not start automatically.",
+    "更新只替换应用程序，不备份账号数据库。新版首次启动可能迁移数据，不支持自动降级。":
+      "Only the app is replaced; account databases are not backed up. The new app may migrate data on first launch. Automatic downgrade is not supported.",
+    "副本已更新，账号目录保持不变。点击启动后使用新版。":
+      "The copy is up to date and account paths are unchanged. Click Start to use it.",
     "关闭提示": "Dismiss notice",
     "查看保留的数据": "Show Retained Data",
     "检查": "Check",

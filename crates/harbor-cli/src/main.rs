@@ -15,7 +15,7 @@ struct Cli {
     /// Metadata directory (default: ~/Library/Application Support/Harbor).
     #[arg(long, global = true)]
     root: Option<PathBuf>,
-    /// Emit a versioned JSON response (list/show/status/clone/icon/start/stop/remove/doctor).
+    /// Emit a versioned JSON response (list/show/status/clone/update/icon/start/stop/remove/doctor).
     #[arg(long, global = true)]
     json: bool,
     #[command(subcommand)]
@@ -53,6 +53,13 @@ enum Commands {
         /// Additional environment variable NAME to forward; repeat as needed.
         #[arg(long = "pass-env")]
         pass_env: Vec<String>,
+    },
+    /// Update a stopped managed copy from the official app, preserving account directories and icons.
+    Update {
+        /// Stable instance identifier from list/show.
+        name: String,
+        #[arg(long, default_value = "/Applications/ChatGPT.app")]
+        source: PathBuf,
     },
     /// Change a stopped Harbor-created copy's Finder/Dock icon, then verify its local signature.
     Icon {
@@ -159,6 +166,11 @@ fn run(cli: Cli) -> Result<()> {
             println!("Created local copy and empty profile '{}'. Source app and existing accounts were not modified.", p.display_name());
             show_routes(&p);
             println!("The copy is locally ad-hoc signed; it does not retain the vendor identity or notarization.\nStart with: harbor --root {} start {}\nSign in to the intended account in its new window.", fsutil::shell_quote(store.root.to_str().context("Non-UTF-8 registry path")?), fsutil::shell_quote(&p.name));
+        }
+        Commands::Update { name, source } => {
+            let profile = harbor_core::update::update_profile(&store, &name, &source, |_| {})?;
+            println!("Copy is ready at the official version; account paths are unchanged. Start it when ready.");
+            show_routes(&profile);
         }
         Commands::Icon {
             name,

@@ -91,7 +91,7 @@ clone 同时为 Launch Services 修改 `LSEnvironment`，直接执行主程序�
 
 文本 `status` 和 `doctor` 的进程部分只检查主进程。JSON status/list 能报告 `helpers_running`，但 `pids` 仍只列主进程。均不读取登录身份或验证运行进程环境。路径/元数据/身份/签名错误会导致 `doctor` 失败，但仅版本差异、缺少旧构建号和已报告的启动冲突不会设置诊断失败标记。JSON doctor 对已完成但失败的诊断返回 `ok=true`、退出 0、`data.passed=false`；Store 初始化错误仍会使 envelope 失败。
 
-系统不隔离 HOME、Keychain、项目、系统权限或全部 Skills/MCP 存储。不实现 OAuth 回调路由、官方更新、账号/数据库迁移或任意客户端支持，不能阻止客户端遵循配置访问被分配数据目录以外的路径。
+系统不隔离 HOME、Keychain、项目、系统权限或全部 Skills/MCP 存储。不实现 OAuth 回调路由、自动官方更新、账号/数据库迁移或任意客户端支持，不能阻止客户端遵循配置访问被分配数据目录以外的路径。
 
 ## 文档核查，2026-09-08
 
@@ -106,11 +106,15 @@ clone 同时为 Launch Services 修改 `LSEnvironment`，直接执行主程序�
 | 直接启动应用没有 Profile 路由 | clone 有 LSEnvironment，但直接启动绕过 Harbor 校验/允许名单。 |
 | 文本/JSON 状态与 GUI/CLI 图标保护等价 | 分别说明主进程检查和包含辅助进程的检查。 |
 | 准备好/接管的应用通过厂商验证 | 厂商信任验证属于 clone，create/adopt 检查结构/元数据。 |
-| 只有一个当前版本且不需要 Python | 版本现统一采用 Cargo 的 `0.0.1`，GUI 构建号仍为 `1`；打包使用 Python 3。 |
+| 只有一个当前版本且不需要 Python | 版本从 Cargo 日历版本 `26.9.101046` 派生；打包使用 Python 3。 |
 | 旧实验路径和历史测试看起来像当前前提/结果 | 改用通用示例；[测试记录](TESTING.md)区分本轮检查与历史证据。 |
 
-核查后已统一版本：[Cargo.toml](../../Cargo.toml) 提供 `0.0.1`，[打包脚本](../../scripts/build_and_run.sh) 从 Cargo metadata 读取 CLI 版本用于 GUI。macOS 独立构建号仍为 `1`。文档本地化不代表界面文字已本地化。
+核查后已统一版本：[Cargo.toml](../../Cargo.toml) 提供 `26.9.101046`，[打包脚本](../../scripts/build_and_run.sh) 从 Cargo metadata 读取 CLI 版本用于 GUI。GUI 显示 `26.9.101046`，构建号保留 Cargo 规范化形式，用于 Sparkle 更新比较。文档本地化不代表界面文字已本地化。
 
 ## GUI 语言状态
 
 GUI 在 `HarborStore` 中持有一个可观察的 `GUILocalization`，由 `UserDefaults` 保存语言选择。`GUIMessage` 保留文案模板和独立插值参数，语言变化时重新渲染已有进度、成功提示和 GUI 错误。底层错误明确保留原文。编译内置文案表与语言选择器分别位于 `apps/Harbor/Sources/Harbor/Localization/GUILocalization.swift` 和 `apps/Harbor/Sources/Harbor/Views/LanguagePicker.swift`，不改变 CLI 协议或实例存储。
+
+## 托管副本更新
+
+`update` 持有注册锁，验证现有身份/版本及停止状态，再以原 Profile 身份、新版本快照准备通过厂商签名验证的替换应用。在暂存前和发布前检查应用及数据目录中的全部辅助进程。自定义图标在签名前沿用。原子交换应用、校验最终签名后，用已刷盘的临时清单原子替换 `profile.json`。清单发布前失败会换回旧应用；回滚失败保留暂存并报告路径。应用与清单不是单个文件系统事务：两次写入之间异常退出会留下可检测的版本不匹配，需要检查恢复。不会备份或回滚账号数据库。

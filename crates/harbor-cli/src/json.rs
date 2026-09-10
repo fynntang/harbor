@@ -68,6 +68,12 @@ fn run(cli: Cli) -> Result<Value> {
             }
             Ok(json!({"profiles":items, "root":store.root}))
         }
+        Commands::Update { name, source } => {
+            let profile = harbor_core::update::update_profile(&store, &name, &source, |stage| {
+                eprintln!("{}", json!({"event":"progress", "stage":stage}))
+            })?;
+            Ok(json!({"profile":profile}))
+        }
         Commands::Icon {
             name,
             image,
@@ -135,6 +141,8 @@ fn run(cli: Cli) -> Result<Value> {
                 json!({"passed":checked.is_ok(), "report":String::from_utf8(report)?, "error":checked.err().map(|e| format!("{e:#}"))}),
             )
         }
-        _ => bail!("JSON supports list, show, status, clone, icon, start, stop, remove and doctor"),
+        _ => bail!(
+            "JSON supports list, show, status, clone, update, icon, start, stop, remove and doctor"
+        ),
     }
 }

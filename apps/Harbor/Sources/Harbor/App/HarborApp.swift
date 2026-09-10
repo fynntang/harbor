@@ -4,13 +4,16 @@ import SwiftUI
 struct HarborApp: App {
   @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
   @State private var store: HarborStore
+  @StateObject private var updater: HarborUpdater
 
   init() {
     // Explicit alternate registry for isolated acceptance runs; default is the CLI default.
     let args = CommandLine.arguments
     let index = args.firstIndex(of: "--registry")
     let root = index.flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil }
-    _store = State(initialValue: HarborStore(client: HarborClient(root: root)))
+    let store = HarborStore(client: HarborClient(root: root))
+    _store = State(initialValue: store)
+    _updater = StateObject(wrappedValue: HarborUpdater(store: store))
   }
 
   var body: some Scene {
@@ -18,14 +21,14 @@ struct HarborApp: App {
       ContentView(store: store)
         .environment(\.locale, store.language.selection.locale)
         .frame(minWidth: 820, minHeight: 560)
-        .onAppear { delegate.store = store }
+        .onAppear { delegate.store = store; updater.start() }
     } defaultValue: {
       "main"
     }
     .defaultSize(width: 1000, height: 660)
-    .commands { HarborCommands(store: store) }
+    .commands { HarborCommands(store: store, updater: updater) }
     MenuBarExtra("Harbor", systemImage: "sailboat") {
-      HarborMenuView(store: store)
+      HarborMenuView(store: store, updater: updater)
         .environment(\.locale, store.language.selection.locale)
     }
     .menuBarExtraStyle(.menu)

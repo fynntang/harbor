@@ -163,7 +163,7 @@ dependencies = [
 
 [[package]]
 name = "harbor-cli"
-version = "0.0.1"
+version = "26.9.101046"
 dependencies = [
  "anyhow",
  "clap",
@@ -175,7 +175,7 @@ dependencies = [
 
 [[package]]
 name = "harbor-core"
-version = "0.0.1"
+version = "26.9.101046"
 dependencies = [
  "anyhow",
  "libc",

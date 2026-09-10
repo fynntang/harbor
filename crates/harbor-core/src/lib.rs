@@ -16,6 +16,7 @@ pub mod lifecycle;
 pub mod model;
 pub mod process;
 pub mod store;
+pub mod update;
 
 pub use app::AppInfo;
 pub use model::{Profile, SCHEMA_VERSION};

@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from version import normalized
 
 
 def run(*args):
@@ -50,8 +51,10 @@ def check_signature(details, team, identifier):
 def check_versions(info, version, cli_version):
     if info.get("CFBundleIdentifier") != "local.harbor.desktop":
         raise ValueError("Unexpected application Bundle ID")
-    if info.get("CFBundleShortVersionString") != version or cli_version.strip() != f"harbor {version}":
+    if info.get("CFBundleShortVersionString") != version or cli_version.strip() != f"harbor {normalized(version)}":
         raise ValueError("GUI and bundled CLI versions must match the workspace version")
+    if "CFBundleVersion" in info and info["CFBundleVersion"] != normalized(version):
+        raise ValueError("Build version must match the normalized release version")
     if info.get("LSMinimumSystemVersion") != "14.0":
         raise ValueError("The release must declare its supported macOS minimum")
 

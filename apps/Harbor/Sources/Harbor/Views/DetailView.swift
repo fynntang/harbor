@@ -5,6 +5,7 @@ struct DetailView: View {
   let item: ProfileItem
   @State private var changingIcon = false
   @State private var removing = false
+  @State private var updating = false
 
   var body: some View {
     ScrollView {
@@ -21,7 +22,7 @@ struct DetailView: View {
           Button(store.text("启动"), systemImage: "play.fill") { Task { await store.start() } }
             .buttonStyle(.borderedProminent)
             .disabled(store.busy || item.issue != nil || item.status.state == "conflict")
-          Button(store.text("停止"), systemImage: "stop.fill") { Task { await store.stop() } }
+          Button(store.text(item.status.state == "helpers_running" ? "清理残留" : "停止"), systemImage: "stop.fill") { Task { await store.stop() } }
             .disabled(store.busy || !["running", "helpers_running"].contains(item.status.state))
           Button(store.text("检查"), systemImage: "checkmark.shield") { Task { await store.check() } }
             .disabled(store.busy)
@@ -29,6 +30,10 @@ struct DetailView: View {
         if let issue = item.issue ?? item.status.error {
           Label(issue, systemImage: "exclamationmark.triangle")
             .foregroundStyle(.orange).textSelection(.enabled)
+        }
+        if item.status.state == "helpers_running" {
+          Text(store.text("副本已退出，但辅助进程仍在运行。清理残留只会请求已知的孤立进程退出；浏览器扩展仍在使用的进程需要先退出对应浏览器，再刷新或重试。"))
+            .font(.callout).foregroundStyle(.orange)
         }
         GroupBox(store.text("应用")) {
           VStack(alignment: .leading, spacing: 12) {
@@ -41,6 +46,10 @@ struct DetailView: View {
                 "\(item.profile.registered_app_version) (\(item.profile.registered_app_build_version ?? store.text("未记录构建号")))"
             )
             pathRow(store.text("副本位置"), item.profile.app_bundle)
+            Button(store.text("更新副本…")) { updating = true }
+              .disabled(store.busy || !item.profile.supportsCustomIcon || item.issue != nil
+                || item.status.state != "stopped")
+              .help(store.text("请先退出副本及其辅助进程，再从官方原版更新"))
             Button(store.text("更换图标…")) { changingIcon = true }
               .disabled(
                 store.busy || !item.profile.supportsCustomIcon || item.issue != nil
@@ -88,6 +97,7 @@ struct DetailView: View {
       }.padding(28)
     }
     .sheet(isPresented: $changingIcon) { ChangeIconView(store: store, item: item) }
+    .sheet(isPresented: $updating) { UpdateProfileView(store: store, item: item) }
     .sheet(isPresented: $removing) { RemoveProfileView(store: store, item: item) }
   }
 

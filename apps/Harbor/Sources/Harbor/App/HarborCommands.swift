@@ -2,11 +2,13 @@ import SwiftUI
 
 struct HarborCommands: Commands {
   let store: HarborStore
+  @ObservedObject var updater: HarborUpdater
   @Environment(\.openWindow) private var openWindow
 
   var body: some Commands {
     CommandGroup(after: .appSettings) {
       LanguagePicker(language: store.language)
+      HarborUpdateMenu(store: store, updater: updater)
     }
     CommandGroup(replacing: .newItem) {
       Button(store.text("创建副本…")) {

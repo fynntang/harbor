@@ -107,3 +107,19 @@ Formatting/shell syntax checks, 11 profile tests and 6 version tests passed. Pac
 - Local Rust checks passed: **76 tests**, formatting, Clippy and release build. Local Swift suite: **22 tests passed**. Added coverage includes immutable original-image snapshots, symlink refusal, badge rendering, unclipped menu initials, saved label/color choices and post-clone icon failure recovery.
 - A real official-app clone was created under an isolated temporary directory and received two consecutive generated icon updates. Original snapshot bytes remained unchanged, and both final signatures passed deep/strict verification. The client was never launched or signed in.
 - The preview artifact was rendered by the actual GUI icon code and visually inspected at large and small sizes. The development app rebuilt and remained running. Native UI automation failed with a closed pipe, so clicking through the new forms and checking the live Dock/menu bar remain unverified in this change.
+
+## Copy update validation (2026-09-10)
+
+- Local Rust suite: 86 tests passed, including preparation/identity/helper-race/final-signature/manifest-publication failure recovery, numeric build ordering, identical-version no-op, adopted-copy rejection and pristine icon detection. Formatting, Clippy and release build passed.
+- Local Swift suite: 28 tests passed; update uses the stable identifier, remains stopped and reports failures without losing selection. The local GUI build/start check passed; no manual UI-click acceptance was performed.
+- A temporary copy of the old 8109 application was updated from official 26.903.61454 / 8378. Identity, display name, routing, six custom icon files and synthetic data remained unchanged; final deep/strict signature and same-version repeat passed. No real account directories were accessed and neither test client nor real Toobit was launched or updated.
+
+## Harbor self-update checks (2026-09-10)
+
+Sparkle 2.9.6 resolved with a pinned revision/checksum. The 30-test Swift suite passed before adding the relaunch-wait case; both updater tests then passed. All 10 Python signing/update tests passed. Release and debug bundles passed deep signature validation; the release launched against an isolated empty registry, and debug disables online updates. A real ZIP and signed appcast were generated and verified with the Keychain signing identity. The extracted app passed signature checks; changing ZIP or feed bytes caused verification failure. This is local packaging and guard evidence, not a completed two-version online installation/relaunch, Developer ID/notarization, CI result, or new public release.
+
+## Calendar version checks (2026-09-10)
+
+Current release label is `v26.09.101046`, derived from Cargo `26.9.101046`. Cargo check and 13 Python tests passed, including date validation, padding and version gates. Three updater tests passed, including Sparkle's actual comparator for same-day increments and day/month/year rollovers. The release build and signed ZIP/appcast generation passed; display version, canonical build and download filename were checked. Historical 0.0.1 results above remain historical; no tag or release was published by this change.
+
+The final date/time format supersedes padded labels: `vYY.M.DHHmm`. Both midnight (`26.9.10000`) and 11:56 on the 10th (`26.9.101156`) are covered. Thirteen Python tests and three Sparkle updater tests passed; invalid times are rejected and actual Sparkle comparisons cover minute/hour/day/month/year boundaries. Release packaging, signatures and appcast generation passed with matching GUI/build version `26.9.101046`. No public release was changed.

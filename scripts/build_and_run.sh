@@ -41,7 +41,8 @@ for row in parsed:
 PY
 fi
 cargo build --release --locked -p harbor-cli
-APP_VERSION="$(cargo metadata --locked --no-deps --format-version 1 | python3 -c 'import json, sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"] == "harbor-cli"))')"
+APP_BUILD_VERSION="$(cargo metadata --locked --no-deps --format-version 1 | python3 -c 'import json, sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"] == "harbor-cli"))')"
+APP_VERSION="$(python3 scripts/version.py "$APP_BUILD_VERSION")"
 swift build --configuration "$SWIFT_CONFIGURATION" --package-path apps/Harbor --scratch-path target/swift-harbor
 SWIFT_BIN="$(swift build --configuration "$SWIFT_CONFIGURATION" --package-path apps/Harbor --scratch-path target/swift-harbor --show-bin-path)/Harbor"
 mkdir -p "$(dirname "$APP_BUNDLE")"
@@ -64,12 +65,22 @@ cat > "$CONTENTS/Info.plist" <<PLIST
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleIconFile</key><string>Harbor.icns</string>
 <key>CFBundleShortVersionString</key><string>${APP_VERSION}</string>
-<key>CFBundleVersion</key><string>1</string>
+<key>CFBundleVersion</key><string>${APP_BUILD_VERSION}</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST
+# SwiftPM links Sparkle, but standalone bundles must embed and sign its nested code.
+SPARKLE_FRAMEWORK="$ROOT_DIR/target/swift-harbor/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
+mkdir -p "$CONTENTS/Frameworks"
+/usr/bin/ditto "$SPARKLE_FRAMEWORK" "$CONTENTS/Frameworks/Sparkle.framework"
+cp "$ROOT_DIR/target/swift-harbor/artifacts/sparkle/Sparkle/LICENSE" "$CONTENTS/Resources/Sparkle-LICENSE"
+python3 scripts/configure_updates.py "$CONTENTS/Info.plist" "$SWIFT_CONFIGURATION"
+SPARKLE_VERSION="$CONTENTS/Frameworks/Sparkle.framework/Versions/B"
+for component in "$SPARKLE_VERSION/XPCServices/Downloader.xpc" "$SPARKLE_VERSION/XPCServices/Installer.xpc" "$SPARKLE_VERSION/Autoupdate" "$SPARKLE_VERSION/Updater.app" "$CONTENTS/Frameworks/Sparkle.framework"; do
+    /usr/bin/codesign "${SIGNING_ARGS[@]}" "$component"
+done
 /usr/bin/codesign "${SIGNING_ARGS[@]}" --identifier local.harbor.desktop.cli "$CONTENTS/Helpers/harbor"
 /usr/bin/codesign "${SIGNING_ARGS[@]}" --identifier local.harbor.desktop.native "$CONTENTS/Helpers/harbor-native"
 /usr/bin/codesign "${SIGNING_ARGS[@]}" "$STAGING/Harbor.app"
