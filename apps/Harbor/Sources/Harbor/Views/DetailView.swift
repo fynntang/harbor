@@ -32,7 +32,7 @@ struct DetailView: View {
             .foregroundStyle(.orange).textSelection(.enabled)
         }
         if item.status.state == "helpers_running" {
-          Text(store.text("副本已退出，但辅助进程仍在运行。清理残留只会请求已知的孤立进程退出；浏览器扩展仍在使用的进程需要先退出对应浏览器，再刷新或重试。"))
+          Text(store.text("副本已退出，但辅助进程仍在运行。清理残留会暂停该实例的浏览器连接并请求已知辅助进程退出，不会退出浏览器；通过 Harbor 启动副本时恢复连接注册。"))
             .font(.callout).foregroundStyle(.orange)
         }
         GroupBox(store.text("应用")) {

@@ -64,7 +64,7 @@ The operation replaces supported Dock/Finder resources and optional 18/36-pixel 
 <a id="removal-and-recovery"></a>
 ## Removal and recovery
 
-The native helper has a 15-second budget for macOS registration/readiness, sending a normal quit request and observing exit. Rust then waits up to five seconds for helpers under the app, `codex_home` and `gui_home`. Known orphan Crashpad, Computer Use and modifier-monitor executables may receive SIGTERM after owner, parent and birth-time checks. Unknown or active helpers prevent completion; there is no SIGKILL fallback. Failure or timeout stops GUI deletion.
+The native helper has a 15-second budget for macOS registration/readiness, sending a normal quit request and observing exit. Rust then waits up to five seconds for helpers under the app, `codex_home` and `gui_home`. Known orphan Crashpad, Computer Use and modifier-monitor executables may receive SIGTERM after owner, parent and birth-time checks. Instance-scoped Chrome native hosts and their plugin-server children can also receive SIGTERM to disconnect that instance without quitting its browser. Unknown or unrelated active helpers prevent completion; there is no SIGKILL fallback. Failure or timeout stops GUI deletion.
 
 Deletion defaults to retaining the entire Profile directory under `<root>/retained/<identifier>-<random>/profile` and moving only the app to system Trash. The registration disappears from the list and the retained path is shown. Selecting **同时将账号数据移到废纸篓** also trashes the whole Profile directory, including metadata, logs and data. Harbor never empties Trash. Removal and error notices have a dismiss button; dismissal only clears the notice and does not delete files. If a retained directory is removed outside Harbor, refreshing or returning to the window clears its stale removal notice. These notices are kept only in memory and also disappear when Harbor quits.
 
@@ -141,7 +141,7 @@ The creation form accepts 1–48 Unicode characters, including Chinese, uppercas
 
 ## Update a copy from the official app
 
-After updating the official app, quit the copy and all helpers, including browser integrations. Select **Update Copy…** in the app details, check the source path/version and confirm. The source defaults to `/Applications/ChatGPT.app`; a different official app may be selected. Harbor does not quit browsers or start the updated copy automatically. If helpers remain, fully quit the browser using that instance's extension and refresh.
+After updating the official app, quit the copy and all helpers, including browser integrations. Select **Update Copy…** in the app details, check the source path/version and confirm. The source defaults to `/Applications/ChatGPT.app`; a different official app may be selected. Harbor does not quit browsers or start the updated copy automatically. If helpers remain, use Clean Up Helpers to disconnect only that instance’s browser integration, then refresh. For managed copies, cleanup temporarily saves and removes Brave, Chrome and Edge native-host registrations pointing to that instance; launching through Harbor restores them if no other instance has registered there.
 
 ```bash
 harbor update work --source /Applications/ChatGPT.app
@@ -153,7 +153,7 @@ Account directories are not copied, deleted or migrated by this operation. The n
 
 ### Helpers after quitting the copy directly
 
-Quitting the copy with Cmd-Q can leave helper processes running. Returning to Harbor or refreshing detects them as **Helpers still running**; **Clean Up Helpers** uses the same safe cleanup as `harbor stop <id>`. Known orphaned helpers receive SIGTERM even when another helper cannot be cleaned up. Active or unrecognized processes are preserved and reported with their name, PID and parent PID. For browser integration, quit the owning browser and retry. Cleanup failures refresh the displayed state; updates and deletion remain blocked while helpers exist. Harbor does not automatically terminate helpers on refresh.
+Quitting the copy with Cmd-Q can leave helper processes running. Returning to Harbor or refreshing detects them as **Helpers still running**; **Clean Up Helpers** uses the same safe cleanup as `harbor stop <id>`. Known orphaned helpers receive SIGTERM even when another helper cannot be cleaned up. Cleanup also disconnects Chrome native hosts at the recognized plugin path inside this instance’s data directory, followed by their plugin-server children (or orphaned plugin servers). The browser, other instances and unrelated active/unknown helpers are preserved. Remaining processes are reported with their name, PID and parent PID. For managed copies, cleanup also pauses matching Brave, Chrome and Edge native-host registrations to prevent reconnection; launching through Harbor restores them without overwriting another registration. Cleanup failures refresh the displayed state; updates and deletion remain blocked while helpers exist. Harbor does not automatically terminate helpers on refresh.
 
 ## Harbor automatic updates
 
@@ -182,7 +182,7 @@ For Developer ID builds, use `--release-only` and pass the signing team through 
 
 ### Calendar release labels
 
-Tags use `vYY.M.DHHmm`, based on the release's Asia/Shanghai date and 24-hour time. Month and day have no leading zero; the final time always has four digits. September 1 at midnight is `v26.9.10000`; September 10 at 11:56 is `v26.9.101156`. `0000` is a valid midnight time. No digit-sum encoding is used. Cargo is the source of truth, and GUI, CLI, build version, appcast and asset names use the same numeric version (only tags have `v`). The current configured version is `26.9.101046` (2026-09-10 10:46). `scripts/version.py` validates dates, leap years and hours/minutes. Numeric component comparisons preserve minute/hour/day/month/year order; raw lexicographic string sorting is not suitable. Only one release per minute can have a unique label: wait for the next minute rather than reusing a tag. Supported years are 2000–2099. Set the version at release preparation time and update Cargo.lock; builds do not change it automatically.
+Tags use `vYY.M.DHHmm`, based on the release's Asia/Shanghai date and 24-hour time. Month and day have no leading zero; the final time always has four digits. September 1 at midnight is `v26.9.10000`; September 10 at 11:56 is `v26.9.101156`. `0000` is a valid midnight time. No digit-sum encoding is used. Cargo is the source of truth, and GUI, CLI, build version, appcast and asset names use the same numeric version (only tags have `v`). The current configured version is `26.9.101853` (2026-09-10 18:53). `scripts/version.py` validates dates, leap years and hours/minutes. Numeric component comparisons preserve minute/hour/day/month/year order; raw lexicographic string sorting is not suitable. Only one release per minute can have a unique label: wait for the next minute rather than reusing a tag. Supported years are 2000–2099. Set the version at release preparation time and update Cargo.lock; builds do not change it automatically.
 
 ### GitHub Actions release workflow
 

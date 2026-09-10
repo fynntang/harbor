@@ -120,6 +120,7 @@ pub fn launch(store: &Store, name: &str, accept_version_change: bool) -> Result<
     let processes = find_running(&profile.executable)?;
     if !processes.is_empty() {
         if processes.len() == 1 && matches_profile(&processes[0], &profile) {
+            crate::browser::set_paused(store, &profile, false)?;
             return Ok(LaunchResult::AlreadyRunning {
                 pid: processes[0].pid,
             });
@@ -165,6 +166,8 @@ pub fn launch(store: &Store, name: &str, accept_version_change: bool) -> Result<
     }
     // Dropping std::process::Child does not kill it. This is a short-lived CLI:
     // after it exits the app is reparented, just like the tested Python launcher.
+    crate::browser::set_paused(store, &profile, false)
+        .context("App started but browser registration could not be restored")?;
     Ok(LaunchResult::Started { pid })
 }
 

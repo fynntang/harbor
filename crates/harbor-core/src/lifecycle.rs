@@ -59,6 +59,7 @@ pub fn stop(store: &Store, name: &str) -> Result<&'static str> {
     identity(&profile)?;
     let processes = process::find_running(&profile.executable)?;
     if processes.is_empty() {
+        crate::browser::set_paused(store, &profile, true)?;
         wait_helpers(&profile)?;
         return Ok("already_stopped");
     }
@@ -74,6 +75,7 @@ pub fn stop(store: &Store, name: &str) -> Result<&'static str> {
             profile.bundle_id.clone(),
         ],
     )?;
+    crate::browser::set_paused(store, &profile, true)?;
     wait_helpers(&profile)?;
     Ok("stopped")
 }

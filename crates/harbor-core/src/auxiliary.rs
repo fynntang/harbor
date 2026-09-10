@@ -1,7 +1,6 @@
-//! Only known, orphaned helpers belonging to this instance receive SIGTERM after the main app exits.
+//! Stop known orphans and instance-scoped browser connections after the main app exits.
 use crate::{process, Profile};
 use anyhow::{ensure, Result};
-#[cfg(any(target_os = "macos", test))]
 use std::path::Path;
 
 pub fn running(profile: &Profile) -> Result<Vec<u32>> {
@@ -36,6 +35,30 @@ fn known(profile: &Profile, executable: &Path) -> bool {
             == profile
                 .codex_home
                 .join("computer-use/Codex Computer Use.app/Contents/MacOS/SkyComputerUseService")
+}
+
+pub(crate) fn browser_host(profile: &Profile, executable: &Path) -> bool {
+    executable
+        .strip_prefix(
+            profile
+                .codex_home
+                .join("plugins/cache/openai-bundled/chrome"),
+        )
+        .ok()
+        .is_some_and(|relative| {
+            let parts: Vec<_> = relative.components().collect();
+            parts.len() == 5
+                && matches!(parts[0], std::path::Component::Normal(_))
+                && parts[1].as_os_str() == "extension-host"
+                && parts[2].as_os_str() == "macos"
+                && parts[3].as_os_str() == "arm64"
+                && parts[4].as_os_str() == "ChatGPT for Chrome"
+        })
+}
+
+#[cfg(any(target_os = "macos", test))]
+fn plugin_server(profile: &Profile, executable: &Path) -> bool {
+    executable == profile.codex_home.join("plugins/.plugin-appserver/codex")
 }
 
 #[cfg(target_os = "macos")]
@@ -80,15 +103,27 @@ pub fn stop_orphans(profile: &Profile) -> Result<()> {
         "Main app is still running; helper cleanup was not attempted"
     );
     let mut blocked = Vec::new();
-    for pid in running(profile)? {
+    // Disconnect native hosts first so they cannot keep restarting their server children.
+    let mut pids = running(profile)?;
+    pids.sort_by_key(|pid| {
+        inspect(*pid as i32).is_none_or(|identity| !browser_host(profile, &identity.path))
+    });
+    for pid in pids {
         let pid = i32::try_from(pid)?;
         let Some(identity) = inspect(pid) else {
             continue;
         };
-        // SAFETY: geteuid has no preconditions.
+        let browser_connection = browser_host(profile, &identity.path);
+        let server_connection = plugin_server(profile, &identity.path)
+            && (identity.parent == 1
+                || inspect(identity.parent as i32).is_some_and(|parent| {
+                    parent.uid == identity.uid && browser_host(profile, &parent.path)
+                }));
+        // SAFETY: geteuid has no preconditions. An active browser itself is never targeted.
         if identity.uid != unsafe { libc::geteuid() }
-            || identity.parent != 1
-            || !known(profile, &identity.path)
+            || !(browser_connection
+                || server_connection
+                || (identity.parent == 1 && known(profile, &identity.path)))
         {
             blocked.push(format!(
                 "PID {pid}, parent PID {}, {}",
@@ -106,7 +141,7 @@ pub fn stop_orphans(profile: &Profile) -> Result<()> {
         if inspect(pid).as_ref() != Some(&identity) {
             continue;
         }
-        // SAFETY: a positive current PID was validated above; SIGTERM asks this orphan to exit.
+        // SAFETY: a positive current PID was validated above; SIGTERM requests a normal exit.
         if unsafe { libc::kill(pid, libc::SIGTERM) } != 0 {
             let error = std::io::Error::last_os_error();
             if error.raw_os_error() != Some(libc::ESRCH) {
@@ -115,7 +150,7 @@ pub fn stop_orphans(profile: &Profile) -> Result<()> {
         }
     }
     ensure!(blocked.is_empty(),
-        "Active or unrecognized helpers remain: {}. Quit their owning app (for browser integration, quit the browser), then retry cleanup. Update and deletion remain blocked",
+        "Active or unrecognized helpers remain: {}. Disconnect the owning integration or quit that helper, then retry cleanup. Update and deletion remain blocked",
         blocked.join("; "));
     Ok(())
 }
@@ -150,6 +185,89 @@ mod tests {
             assert!(!known(&p, Path::new(path)));
         }
     }
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn disconnects_only_this_profiles_browser_tree() {
+        use std::{
+            fs,
+            io::Write,
+            process::{Command, Stdio},
+            thread,
+            time::{Duration, Instant},
+        };
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        let p: Profile = serde_json::from_value(serde_json::json!({
+            "schema_version":1, "name":"work", "app_bundle":root.join("Work.app"),
+            "executable":root.join("Work.app/Contents/MacOS/ChatGPT"),
+            "bundle_id":"com.openai.codex.harbor.work", "registered_app_version":"1", "registered_app_build_version":"1",
+            "codex_home":root.join("work/codex"), "gui_home":root.join("work/gui"), "working_directory":root,
+            "pass_env":[], "adopted_data":false
+        })).unwrap();
+        let host = p.codex_home.join("plugins/cache/openai-bundled/chrome/latest/extension-host/macos/arm64/ChatGPT for Chrome");
+        let server = p.codex_home.join("plugins/.plugin-appserver/codex");
+        let other = root.join("other/codex/plugins/cache/openai-bundled/chrome/latest/extension-host/macos/arm64/ChatGPT for Chrome");
+        assert!(browser_host(&p, &host));
+        assert!(!browser_host(&p, &other));
+        assert!(!browser_host(&p, &host.with_file_name("unknown")));
+        assert!(plugin_server(&p, &server));
+        assert!(!plugin_server(
+            &p,
+            &root.join("other/codex/plugins/.plugin-appserver/codex")
+        ));
+        let browser = root.join("browser");
+        let mut compiler = Command::new("/usr/bin/cc")
+            .args(["-x", "c", "-", "-o"])
+            .arg(&browser)
+            .stdin(Stdio::piped())
+            .spawn()
+            .unwrap();
+        compiler.stdin.take().unwrap().write_all(b"#include <unistd.h>\nint main(int argc,char **argv){alarm(15);if(argc>1 && fork()==0){execl(argv[1],argv[1],argc>2?argv[2]:(char*)0,(char*)0);_exit(2);}for(;;)pause();}\n").unwrap();
+        assert!(compiler.wait().unwrap().success());
+        for target in [&host, &server, &other] {
+            fs::create_dir_all(target.parent().unwrap()).unwrap();
+            fs::copy(&browser, target).unwrap();
+        }
+        let mut parent = Command::new(&browser)
+            .arg(&host)
+            .arg(&server)
+            .spawn()
+            .unwrap();
+        let mut other_child = Command::new(&other).spawn().unwrap();
+        // This server has an unrelated live parent and must not be terminated.
+        let mut unrelated_server = Command::new(&server).spawn().unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while running(&p).unwrap().len() < 3 {
+            assert!(Instant::now() < deadline, "browser tree did not start");
+            thread::sleep(Duration::from_millis(20));
+        }
+        let tree: Vec<_> = running(&p)
+            .unwrap()
+            .into_iter()
+            .filter(|pid| *pid != unrelated_server.id())
+            .collect();
+        assert_eq!(tree.len(), 2);
+        loop {
+            assert!(
+                stop_orphans(&p).is_err(),
+                "unrelated server must remain blocked"
+            );
+            if running(&p).unwrap() == vec![unrelated_server.id()] {
+                break;
+            }
+            assert!(Instant::now() < deadline, "owned browser tree did not exit");
+            thread::sleep(Duration::from_millis(20));
+        }
+        for child in [&mut parent, &mut other_child, &mut unrelated_server] {
+            assert!(
+                child.try_wait().unwrap().is_none(),
+                "unrelated process was terminated"
+            );
+            child.kill().unwrap();
+            child.wait().unwrap();
+        }
+    }
+
     #[cfg(target_os = "macos")]
     #[test]
     fn live_child_is_preserved_but_known_orphan_exits() {

@@ -101,7 +101,7 @@ final class GUILocalization {
       "Harbor will request a normal quit first. Removal stops if quitting is cancelled, times out or leaves helpers running.",
     "例如 work": "e.g. work",
     "清理残留": "Clean Up Helpers",
-    "副本已退出，但辅助进程仍在运行。清理残留只会请求已知的孤立进程退出；浏览器扩展仍在使用的进程需要先退出对应浏览器，再刷新或重试。": "The copy has quit, but helpers are still running. Cleanup only requests known orphaned processes to exit. If a browser extension still uses a helper, quit that browser, then refresh or retry.",
+    "副本已退出，但辅助进程仍在运行。清理残留会暂停该实例的浏览器连接并请求已知辅助进程退出，不会退出浏览器；通过 Harbor 启动副本时恢复连接注册。": "The copy has quit, but helpers are still running. Cleanup pauses this instance’s browser integration and asks known helpers to exit without quitting the browser. Launching the copy through Harbor restores its connection registration.",
     "检查 Harbor 更新…": "Check for Harbor Updates…",
     "自动检查 Harbor 更新": "Automatically Check for Harbor Updates",
     "开发版未启用自动更新": "Automatic updates are disabled in development builds",

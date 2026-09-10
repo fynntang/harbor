@@ -81,7 +81,7 @@ Clone also patches `LSEnvironment` for Launch Services; direct executable launch
 
 [lifecycle.rs](../crates/harbor-core/src/lifecycle.rs) revalidates paths and app identity, requires the native helper and holds the registry lock. Normal main-app quit uses NSRunningApplication identity checks and a shared 15-second readiness/request/exit deadline. Up to five additional seconds handle residual helpers.
 
-[auxiliary.rs](../crates/harbor-core/src/auxiliary.rs) scans executable paths beneath the app and both data directories. Known Crashpad, Computer Use and modifier-monitor orphans are eligible for SIGTERM only with the current user's UID, parent PID 1 and a rechecked executable/owner/parent/birth time. There is no SIGKILL fallback. These process-table and libproc checks reduce accidental targeting; they are not atomic protection against a malicious same-user process.
+[auxiliary.rs](../crates/harbor-core/src/auxiliary.rs) scans executable paths beneath the app and both data directories. Known Crashpad, Computer Use and modifier-monitor orphans are eligible for SIGTERM only with the current user's UID, parent PID 1 and a rechecked executable/owner/parent/birth time. The recognized Chrome native host under this profile’s plugin cache can be disconnected even with a live browser parent. The exact `.plugin-appserver/codex` is eligible only when orphaned or parented by that same profile’s native host; hosts are signaled first. Browser processes and other profile paths are not targeted. There is no SIGKILL fallback. These process-table and libproc checks reduce accidental targeting; they are not atomic protection against a malicious same-user process.
 
 Removal requires no scanned processes, `adopted_data=false`, the Harbor-style ID and exact profile-owned data paths. It checks overlap with other instances and reserved directories. Default removal exclusively moves the Profile into a private `retained` directory before trashing the app. Explicit data removal trashes both app and Profile. Errors attempt no-overwrite restoration; interruption or rollback failure may require manual recovery. No code empties Trash. Moving a whole account directory is different from parsing/copying its credentials. See [recovery](GUI.md#removal-and-recovery).
 
@@ -106,10 +106,10 @@ These differences were resolved in documentation, without changing program behav
 | Direct app launch has no profile routing | Clone has LSEnvironment, but direct launch bypasses Harbor validation/allowlist. |
 | Text/JSON state and GUI/CLI icon guards are interchangeable | Main-only vs auxiliary-aware checks are documented separately. |
 | Prepared/adopted apps are vendor-verified | Vendor trust verification belongs to clone; create/adopt inspect layout/metadata. |
-| One current version and no Python requirement | Versions derive from Cargo calendar version `26.9.101046`; packaging uses Python 3. |
+| One current version and no Python requirement | Versions derive from Cargo calendar version `26.9.101853`; packaging uses Python 3. |
 | Old experiment paths and historical tests read as current prerequisites/results | Examples are generic; [Testing](TESTING.md) separates fresh checks and historical evidence. |
 
-After the audit, the versions were unified: [Cargo.toml](../Cargo.toml) supplies `26.9.101046`, and [packaging](../scripts/build_and_run.sh) reads the CLI version from Cargo metadata for the GUI. The GUI displays `26.9.101046`; the build version preserves the canonical Cargo form for Sparkle comparisons. Documentation localization does not imply localized UI strings.
+After the audit, the versions were unified: [Cargo.toml](../Cargo.toml) supplies `26.9.101853`, and [packaging](../scripts/build_and_run.sh) reads the CLI version from Cargo metadata for the GUI. The GUI displays `26.9.101853`; the build version preserves the canonical Cargo form for Sparkle comparisons. Documentation localization does not imply localized UI strings.
 
 ## GUI language state
 
@@ -118,3 +118,5 @@ The GUI owns one observable `GUILocalization` in `HarborStore`. `UserDefaults` s
 ## Managed copy update
 
 `update` holds the registry lock, verifies the existing identity/version and stopped state, then prepares a vendor-verified replacement with the existing profile identity and new version snapshot. It checks all app/data helper processes before staging and immediately before publication. Custom icons are carried forward before signing. The app is atomically exchanged, its final signature verified, and a flushed temporary manifest atomically replaces `profile.json`. Failure before manifest publication swaps the old app back; rollback failure retains staging and reports its path. The app/manifest pair is not a single filesystem transaction: interruption between the two writes leaves a detectable version mismatch and requires inspection. No account database is backed up or rolled back.
+
+Managed-copy stop also backs up and removes matching Brave, Chrome and Edge native messaging registrations in `browser-registrations` under the profile directory before signaling helpers. Launch restores them only into an empty registration slot. Other instances’ registrations are preserved. This prevents browser reconnection without quitting the browser.

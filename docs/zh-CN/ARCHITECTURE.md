@@ -106,10 +106,10 @@ clone 同时为 Launch Services 修改 `LSEnvironment`，直接执行主程序�
 | 直接启动应用没有 Profile 路由 | clone 有 LSEnvironment，但直接启动绕过 Harbor 校验/允许名单。 |
 | 文本/JSON 状态与 GUI/CLI 图标保护等价 | 分别说明主进程检查和包含辅助进程的检查。 |
 | 准备好/接管的应用通过厂商验证 | 厂商信任验证属于 clone，create/adopt 检查结构/元数据。 |
-| 只有一个当前版本且不需要 Python | 版本从 Cargo 日历版本 `26.9.101046` 派生；打包使用 Python 3。 |
+| 只有一个当前版本且不需要 Python | 版本从 Cargo 日历版本 `26.9.101853` 派生；打包使用 Python 3。 |
 | 旧实验路径和历史测试看起来像当前前提/结果 | 改用通用示例；[测试记录](TESTING.md)区分本轮检查与历史证据。 |
 
-核查后已统一版本：[Cargo.toml](../../Cargo.toml) 提供 `26.9.101046`，[打包脚本](../../scripts/build_and_run.sh) 从 Cargo metadata 读取 CLI 版本用于 GUI。GUI 显示 `26.9.101046`，构建号保留 Cargo 规范化形式，用于 Sparkle 更新比较。文档本地化不代表界面文字已本地化。
+核查后已统一版本：[Cargo.toml](../../Cargo.toml) 提供 `26.9.101853`，[打包脚本](../../scripts/build_and_run.sh) 从 Cargo metadata 读取 CLI 版本用于 GUI。GUI 显示 `26.9.101853`，构建号保留 Cargo 规范化形式，用于 Sparkle 更新比较。文档本地化不代表界面文字已本地化。
 
 ## GUI 语言状态
 
@@ -118,3 +118,7 @@ GUI 在 `HarborStore` 中持有一个可观察的 `GUILocalization`，由 `UserD
 ## 托管副本更新
 
 `update` 持有注册锁，验证现有身份/版本及停止状态，再以原 Profile 身份、新版本快照准备通过厂商签名验证的替换应用。在暂存前和发布前检查应用及数据目录中的全部辅助进程。自定义图标在签名前沿用。原子交换应用、校验最终签名后，用已刷盘的临时清单原子替换 `profile.json`。清单发布前失败会换回旧应用；回滚失败保留暂存并报告路径。应用与清单不是单个文件系统事务：两次写入之间异常退出会留下可检测的版本不匹配，需要检查恢复。不会备份或回滚账号数据库。
+
+浏览器定向清理：主应用退出后，可向该实例插件缓存中已识别路径的 Chrome native host 发送 SIGTERM，即使其浏览器父进程仍在运行。精确路径 `.plugin-appserver/codex` 仅在已孤立或父进程是同实例 native host 时可清理，先处理 host。保留浏览器、其他实例以及无关活跃进程，并在发信号前重验进程身份。
+
+停止托管副本时，先将 Brave、Chrome 和 Edge 中指向该实例的 native messaging 注册备份到 Profile 目录的 `browser-registrations`，并移除原注册，再请求辅助进程退出。启动时仅恢复到空注册位置，保留其他实例的注册，避免浏览器自动重连且无需退出浏览器。

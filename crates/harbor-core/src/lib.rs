@@ -8,6 +8,7 @@ compile_error!("Harbor currently supports macOS runtime and Unix-only tests.");
 
 pub mod app;
 pub mod auxiliary;
+pub mod browser;
 pub mod clone;
 pub mod environment;
 pub mod fsutil;
