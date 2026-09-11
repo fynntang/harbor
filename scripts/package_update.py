@@ -81,7 +81,7 @@ def main():
         if checked(TOOLS / "generate_keys", "--account", ACCOUNT, "-p") != public_key:
             raise ValueError("The Keychain signing key does not match the embedded public key")
         key_args = ["--account", ACCOUNT]
-    filename = f"Harbor-{version}-macos-arm64.zip"
+    filename = f"Harbor-{version}-macos-universal.zip"
     args.output_dir.mkdir(parents=True, exist_ok=True)
     if (args.output_dir / filename).exists():
         raise ValueError("ZIP already exists; use an empty output directory to avoid replacing release artifacts")
@@ -97,9 +97,10 @@ def main():
         archive.rename(args.output_dir / filename)
         feed.replace(args.output_dir / "appcast.xml")
     assets = [args.output_dir / filename, args.output_dir / "appcast.xml"]
-    dmg = args.output_dir / f"Harbor-{version}-macos-arm64.dmg"
-    if dmg.exists():
-        assets.append(dmg)
+    for target in ("aarch64-apple-darwin", "x86_64-apple-darwin"):
+        dmg = args.output_dir / f"Harbor-{version}-{target}.dmg"
+        if dmg.exists():
+            assets.append(dmg)
     (args.output_dir / "SHA256SUMS.txt").write_text("".join(
         f"{hashlib.sha256(asset.read_bytes()).hexdigest()}  {asset.name}\n" for asset in assets))
     print(f"Prepared signed update {version} in {args.output_dir}; nothing uploaded")

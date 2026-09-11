@@ -2,14 +2,16 @@
 
 English | [简体中文](zh-CN/README.md) · [Project README](../README.md)
 
-Harbor documentation is available in English and Simplified Chinese. Existing top-level documentation paths remain valid and now contain English; each page links directly to its Chinese counterpart.
+Choose a topic below for usage, implementation details or test records. Each page links to its English and Simplified Chinese versions.
 
 | Topic | English | 简体中文 |
 |---|---|---|
 | Overview and CLI quick start | [README](../README.md) | [README](../README.zh-CN.md) |
 | macOS GUI, icons, deletion and JSON | [GUI](GUI.md) | [GUI](zh-CN/GUI.md) |
-| Implementation, constraints and audit findings | [Architecture](ARCHITECTURE.md) | [实现与边界](zh-CN/ARCHITECTURE.md) |
-| Current checks, history and manual acceptance | [Testing](TESTING.md) | [测试与证据](zh-CN/TESTING.md) |
+| Intel / Apple Silicon installers and releases | [Release builds](GUI.md#release-build) | [发布构建](zh-CN/GUI.md#release-build) |
+| Next milestone: Windows support | [Roadmap](ROADMAP.md) | [路线图](zh-CN/ROADMAP.md) |
+| Implementation and limitations | [Architecture](ARCHITECTURE.md) | [实现与边界](zh-CN/ARCHITECTURE.md) |
+| Test records and manual acceptance | [Testing](TESTING.md) | [测试与证据](zh-CN/TESTING.md) |
 | References and provenance | [References](REFERENCES.md) | [参考与来源](zh-CN/REFERENCES.md) |
 
 ## Language layout
@@ -20,12 +22,14 @@ README.zh-CN.md
 docs/
 ├── README.md
 ├── GUI.md
+├── ROADMAP.md
 ├── ARCHITECTURE.md
 ├── TESTING.md
 ├── REFERENCES.md
 └── zh-CN/
     ├── README.md
     ├── GUI.md
+    ├── ROADMAP.md
     ├── ARCHITECTURE.md
     ├── TESTING.md
     └── REFERENCES.md
@@ -35,10 +39,6 @@ The GUI supports English and Simplified Chinese with an immediate, persistent la
 
 ## Maintaining both languages
 
-1. Inspect the relevant current implementation before changing descriptions. When docs differ, correct the docs; record material behavior gaps instead of silently implementing a different feature.
-2. Update both language pages in the same change. Keep section order, commands, paths, flags, response fields, limits and verification status equivalent. Translate explanatory prose, not command/API identifiers.
-3. Keep language links at the top and topic links within the reader's language where possible. Use repository-relative links. Keep explicit shared anchors for cross-language sections such as `environment` and `removal-and-recovery`.
-4. Separate source-derived behavior, freshly rerun checks and historical experiments. Do not turn old screenshots, version numbers or personal paths into current requirements or acceptance claims.
-5. Check local links/anchors and matching fenced command blocks after edits. Add another locale as a matching directory/page set only when its content is actually translated; a language link alone is not support.
+Check the code before editing docs, and update both languages together. Keep commands, paths, flags and technical meaning equivalent. Check links, anchors and code blocks after editing.
 
-The [2026-09-08 implementation audit](ARCHITECTURE.md) records corrected mismatches. [Testing](TESTING.md) states what was and was not revalidated. No documentation generator or runtime localization dependency is required.
+Usage pages describe existing behavior. Keep dated results in [Testing](TESTING.md), rather than presenting historical results as current status.

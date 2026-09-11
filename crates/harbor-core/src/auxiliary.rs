@@ -51,7 +51,10 @@ pub(crate) fn browser_host(profile: &Profile, executable: &Path) -> bool {
                 && matches!(parts[0], std::path::Component::Normal(_))
                 && parts[1].as_os_str() == "extension-host"
                 && parts[2].as_os_str() == "macos"
-                && parts[3].as_os_str() == "arm64"
+                && matches!(
+                    parts[3].as_os_str().to_str(),
+                    Some("arm64" | "x64" | "x86_64")
+                )
                 && parts[4].as_os_str() == "ChatGPT for Chrome"
         })
 }
@@ -208,6 +211,16 @@ mod tests {
         let server = p.codex_home.join("plugins/.plugin-appserver/codex");
         let other = root.join("other/codex/plugins/cache/openai-bundled/chrome/latest/extension-host/macos/arm64/ChatGPT for Chrome");
         assert!(browser_host(&p, &host));
+        for arch in ["x64", "x86_64"] {
+            let intel_host = host
+                .parent()
+                .unwrap()
+                .parent()
+                .unwrap()
+                .join(arch)
+                .join("ChatGPT for Chrome");
+            assert!(browser_host(&p, &intel_host));
+        }
         assert!(!browser_host(&p, &other));
         assert!(!browser_host(&p, &host.with_file_name("unknown")));
         assert!(plugin_server(&p, &server));

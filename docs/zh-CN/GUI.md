@@ -4,7 +4,7 @@
 
 ## 构建与运行
 
-要求：macOS 14+、Rust 1.89+/Cargo、Swift 6+/macOS SDK 和工具、Bash、Python 3。SwiftPM 没有第三方包依赖。
+要求：macOS 14+、Rust 1.89+/Cargo、Swift 6+/macOS SDK 和工具、Bash、Python 3。SwiftPM 会下载固定版本的 Sparkle，供 Harbor 自动更新使用。
 
 在仓库根目录执行：
 
@@ -17,7 +17,7 @@ swift test --package-path apps/Harbor --scratch-path target/swift-harbor
 
 产物为 `dist/Harbor.app`，内置 debug Swift GUI/原生辅助程序和 release Rust CLI。采用本地 ad-hoc 签名，不是 Developer ID 签名或公证版本。移动时应复制整个 bundle。仅 `cargo install` 不会提供停止/删除所需的原生辅助程序。
 
-所有构建模式，包括 `--build-only`，都会检查本 checkout 的内置 helper 是否正在执行操作，存在操作时拒绝重建，否则停止该 checkout 现有的 Harbor GUI。不会停止客户端实例。`--verify` 启动 Harbor 并检查精确可执行路径对应的进程一秒后仍存在，不是界面或账号测试。`--debug` 使用 LLDB；`--logs` 和 `--telemetry` 打开系统日志流，不保证每个操作都有日志事件。
+开发构建模式（包括 `--build-only`）会检查本 checkout 的内置 helper 是否正在执行操作，存在操作时拒绝重建，否则停止该 checkout 现有的 Harbor GUI。不会停止客户端实例。`--verify` 启动 Harbor 并检查精确可执行路径对应的进程一秒后仍存在，不是界面或账号测试。`--debug` 使用 LLDB；`--logs` 和 `--telemetry` 打开系统日志流，不保证每个操作都有日志事件。
 
 Codex Run 指向同一个脚本。可以指定独立 registry：
 
@@ -45,9 +45,9 @@ Codex Run 指向同一个脚本。可以指定独立 registry：
 | 刷新 / Refresh | 重新读取登记与状态；窗口激活和 ⌘R 也会触发。 |
 | 文件夹控件 | 在 Finder 显示路径。日志目录按钮目前打开 `codex_home` 的父目录；接管数据时可能不是 Harbor 日志所在目录。 |
 
-状态层通过 busy 状态串行执行修改操作和刷新。错误会显示，不推断操作成功。身份或版本差异会标为需要检查。GUI 没有 `--accept-version-change`、环境变量编辑器或恢复按钮。无效的 registry 条目可能导致整个列表读取失败；此界面不负责修复登记。
+修改操作和刷新按顺序执行，失败时显示错误。身份或版本差异会标为需要检查。GUI 没有 `--accept-version-change`、环境变量编辑器或恢复按钮。无效的 registry 条目可能导致整个列表读取失败；此界面不负责修复登记。
 
-顶部帆船菜单支持打开 Harbor、创建副本和退出。主窗口使用固定值复用。关闭全部窗口保留菜单栏入口，操作进行时会阻止正常退出。客户端仍为独立进程。没有开机启动项、launchd 守护程序或定时轮询。
+顶部帆船菜单提供打开窗口、创建副本、切换语言和检查更新等操作。关闭窗口后 Harbor 继续在菜单栏运行；操作进行中不能退出。客户端实例独立运行。Harbor 运行期间每 60 秒检查本机官方客户端，默认每天检查自身更新。没有开机启动项或 launchd 守护程序。
 
 ## 图标
 
@@ -98,18 +98,38 @@ dist/Harbor.app/Contents/Helpers/harbor remove work --yes
 <a id="release-build"></a>
 ## 发布构建与签名
 
-上面的开发命令仍生成 `dist/Harbor.app`，包含 debug Swift GUI/原生辅助程序、release Rust CLI 和 ad-hoc 签名。独立发布命令以 release 模式编译三个程序，输出到 `dist/release/Harbor.app`，不停止或替换开发版应用。首版仅支持 macOS 14+ / arm64。
+上面的开发命令仍生成 `dist/Harbor.app`，包含 debug Swift GUI/原生辅助程序、release Rust CLI 和 ad-hoc 签名。独立发布命令以 release 模式编译三个程序，输出到 `dist/release/Harbor.app`，不停止或替换开发版应用。发布构建支持 macOS 14+ / Universal（arm64 + x86_64），开发构建使用本机架构。先执行 `rustup target add aarch64-apple-darwin x86_64-apple-darwin` 安装两个 Rust 目标。
 
-没有 Developer ID 证书时，可使用明确的本地签名发布模式免费分发预览版。三个程序均使用 release 编译，校验签名、标识、架构和版本，产物为 `dist/release-adhoc/Harbor.app`。此模式不查询签名身份、不停止 GUI，也不覆盖 Developer ID 产物。它**未经公证**，签名不代表受信任的发布者身份。
+没有 Developer ID 证书时，可使用明确的本地签名发布模式免费分发正式版。三个程序均使用 release 编译，校验签名、标识、架构和版本，产物为 `dist/release-adhoc/Harbor.app`。此模式不查询签名身份、不停止 GUI，也不覆盖 Developer ID 产物。它**未经公证**，签名不代表受信任的发布者身份。
+
+DMG 分别命名为 `Harbor-<version>-aarch64-apple-darwin.dmg` 和 `Harbor-<version>-x86_64-apple-darwin.dmg`，其中 GUI、CLI 和原生辅助程序仅包含对应架构，内置 Sparkle 框架保留 Universal。`package_dmg.py` 默认生成两份，也可用 `--target aarch64-apple-darwin` 或 `--target x86_64-apple-darwin` 指定。脚本复制 Universal 应用、提取目标程序架构并重新 ad-hoc 签名，不改动输入应用。自动更新继续使用 `macos-universal.zip` 和一个签名更新清单；旧 arm64 安装可通过原更新地址升级为 Universal 应用。Harbor 支持 Intel 不代表官方客户端支持 Intel；2026-09-11 检查的本机官方原版仅含 arm64。仍需 Intel 实机验收。
 
 ```bash
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
 ./scripts/build_and_run.sh --release-adhoc
-mkdir -p dist/artifacts
-ditto -c -k --sequesterRsrc --keepParent dist/release-adhoc/Harbor.app dist/artifacts/Harbor-0.0.1-macos-arm64.zip
-python3 scripts/package_dmg.py dist/release-adhoc/Harbor.app
+python3 scripts/package_dmg.py dist/release-adhoc/Harbor.app --output-dir dist/artifacts
 ```
 
-从项目 GitHub Release 下载 DMG 和校验文件，核对 DMG 校验值后打开，将 Harbor.app 拖入 Applications 入口，推出磁盘后从“应用程序”启动 Harbor。覆盖安装前请退出 Harbor。ZIP 继续作为备选。打包脚本生成压缩只读 DMG，挂载后验证签名、逐个比对应用文件与输入发布版一致，再更新包含 ZIP（若存在）和 DMG 的 `SHA256SUMS.txt`；不重新构建或签名应用。若只下载一种格式，对照校验文件中的相应行核对即可。另行安装官方 ChatGPT/Codex 应用。若首次打开因无法验证发布者而被拦截，确认下载来源后按 [Apple 官方说明](https://support.apple.com/en-us/102445) 操作，无需全局关闭 Gatekeeper。尚未在另一台 Mac 上完成安装验收。
+安装前对照 `SHA256SUMS.txt` 核对下载的 DMG，打开后将 Harbor.app 拖入 Applications，推出磁盘后启动已安装的应用。覆盖安装前先退出 Harbor。官方 ChatGPT/Codex 客户端需要另行安装。
+
+打包脚本创建压缩只读 DMG，挂载后验证签名，并逐个比对其中的文件与暂存应用。随后更新两个 DMG、Universal ZIP 和更新清单（若存在）的 `SHA256SUMS.txt`。只下载一个附件时，核对校验文件中对应的一行即可。
+
+上述命令只生成 DMG；用于自动更新的 ZIP 与签名清单由 `scripts/package_update.py` 或标签发布工作流生成。`package_dmg.py` 仅接受 ad-hoc Universal 输入，不用于打包 Developer ID 构建。
+
+<a id="first-launch"></a>
+### 首次打开
+
+Harbor 发行版使用 ad-hoc 签名，未经 Apple 公证。
+
+确认应用来自本项目 GitHub Release，并核对 `SHA256SUMS.txt`，将其安装到 `/Applications/Harbor.app`。若提示无法验证开发者，先尝试打开一次，再到“系统设置 → 隐私与安全 → 仍要打开”。见 [Apple 官方说明](https://support.apple.com/en-us/102445)。
+
+仅在来源可信、校验和一致且阻止原因是下载隔离标记时，可使用以下备选命令。它递归移除 Harbor 的隔离属性，使该应用不再触发基于此标记的首次下载检查；不修复文件，也不补充公证。权限不足时才在命令前加 `sudo`。
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Harbor.app"
+```
+
+若提示恶意软件或“会损害电脑”，不要使用此命令绕过。校验和不一致时重新下载，无需全局关闭 Gatekeeper。
 
 Developer ID 签名继续使用下面的独立流程。
 
@@ -121,9 +141,9 @@ HARBOR_SIGNING_IDENTITY=YOUR_CERTIFICATE_SHA1 ./scripts/build_and_run.sh --relea
 
 将占位符替换为证书指纹。配置缺失、格式不正确、签名身份不可用或证书类型不符时，命令会在构建或替换应用前停止，不降级为 ad-hoc 签名。两个辅助程序使用稳定签名标识 `local.harbor.desktop.cli` 和 `local.harbor.desktop.native`；GUI 保留 `local.harbor.desktop`，继续读取已有偏好。
 
-脚本先签辅助程序，再签 Harbor.app，使用选定身份、Hardened Runtime 和安全时间戳。写入最终本地产物前，`scripts/signing.py` 验证 Apple 签名信任锚、签名、签名团队、标识、运行时标志、时间戳、三个程序一致的 arm64 架构及 GUI/CLI/工作区版本一致性。检查失败不会替换先前的发布版应用。不额外添加 entitlement。这些配置只用于 Harbor 自身和内置辅助程序；用户创建的客户端副本继续使用已有本地签名流程，不会获得发布者的证书或私钥。
+脚本先签辅助程序，再签 Harbor.app，使用选定身份、Hardened Runtime 和安全时间戳。写入最终本地产物前，`scripts/signing.py` 验证 Apple 签名信任锚、签名、签名团队、标识、运行时标志、时间戳、三个程序一致的 arm64 + x86_64 架构及 GUI/CLI/工作区版本一致性。检查失败不会替换先前的发布版应用。不额外添加 entitlement。这些配置只用于 Harbor 自身和内置辅助程序；用户创建的客户端副本继续使用已有本地签名流程，不会获得发布者的证书或私钥。
 
-**此命令生成已签名应用，不代表已完成公证分发。** Apple 公证、票据装订、ZIP/校验文件生成、另一台 Mac 的安装验收及 GitHub Release 发布仍是后续步骤，不能将中间产物标记为已公证或已通过 Gatekeeper。当前 CI 不执行正式签名，测试签名门槛并构建、验证本地签名发布版，不访问签名凭据。
+**Developer ID 签名不包含公证。** 签名后还需提交 Apple 公证、装订票据，再打包并测试安装后发布。发布工作流使用 ad-hoc 签名，不使用 Developer ID 证书。
 
 ## 实例图标的名称角标
 
@@ -161,7 +181,7 @@ harbor update work --source /Applications/ChatGPT.app
 
 发行构建集成 Sparkle 2.9.6。“Harbor → 检查 Harbor 更新…”及顶部菜单栏均提供手动检查和“自动检查 Harbor 更新”开关。默认在 Harbor 运行期间每天检查一次，安装需要用户确认。Sparkle 负责下载、校验、替换 Harbor 并重新启动。Harbor 有操作进行时拒绝检查，重启会等待空闲，原有退出保护继续生效。此机制不更新托管副本或账号目录。Debug 构建禁用更新器。Harbor 菜单文字跟随所选语言；Sparkle 标准对话框跟随系统支持的语言。
 
-稳定版订阅地址为 `https://github.com/fynntang/harbor/releases/latest/download/appcast.xml`。草稿和预发布版本不属于此通道。更新清单和 ZIP 均须通过 `config/sparkle-public-key.txt` 中公钥对应的 Ed25519 签名校验；签名无效时拒绝安装，解压前完成验证。网络检查失败不会替换应用。更新要求项目版本递增；macOS 两个版本字段使用相同的 Cargo 版本。目前已发布的 0.0.1 没有更新器，用户需要先手动安装一次含更新器的版本。在稳定发布附带更新清单之前，手动检查可能提示无法获取订阅。
+稳定版订阅地址为 `https://github.com/fynntang/harbor/releases/latest/download/appcast.xml`。草稿和预发布版本不属于此通道。更新清单和 ZIP 均须通过 `config/sparkle-public-key.txt` 中公钥对应的 Ed25519 签名校验；签名无效时拒绝安装，解压前完成验证。网络检查失败不会替换应用。更新要求项目版本递增；macOS 两个版本字段使用相同的 Cargo 版本。历史 0.0.1 版本没有更新器，仍使用该版本的用户需先手动升级一次；后续版本通过稳定更新地址获取更新。
 
 ### 准备和发布更新
 
@@ -178,18 +198,20 @@ python3 scripts/package_update.py dist/release-adhoc/Harbor.app --output-dir dis
 
 Developer ID 构建使用 `--release-only`，并向 `package_update.py --team TEAM_ID` 传入签名团队；最终应用应先公证并装订票据，再打包。Ed25519 更新签名不替代 Developer ID 或公证。当前 DMG 脚本只验证 ad-hoc 构建。
 
-3. 验证附件并在测试 Mac 上安装、重启，然后将生成的 ZIP、DMG、`appcast.xml` 和 `SHA256SUMS.txt` 附到对应 `v<version>` GitHub Release。以稳定版发布并标记 latest。先在草稿中上传全部附件，齐全后再公开。固定订阅地址随后解析到新版签名清单。签名后不要再修改 XML 或 ZIP 字节。
+3. 验证附件并在测试 Mac 上安装、重启，然后将生成的两个 DMG、Universal ZIP、`appcast.xml` 和 `SHA256SUMS.txt` 附到对应 `v<version>` GitHub Release。以稳定版发布并标记 latest。先在草稿中上传全部附件，齐全后再公开。固定订阅地址随后解析到新版签名清单。签名后不要再修改 XML 或 ZIP 字节。
 
 `package_update.py` 检查最终应用、内嵌公钥/订阅/版本及钥匙串公钥一致性，为 ZIP 和清单签名并验证，再写入校验和。它不上传、不修改 Git 标签、不导出私钥。更新器行为及密钥恢复限制见 [Sparkle 文档](https://sparkle-project.org/documentation/)。
 
 ### 日历版本标签
 
-标签采用 `vYY.M.DHHmm`，使用发布时 Asia/Shanghai 的日期与 24 小时时间。月份和日期不补前导零，末尾时间始终保留四位。9 月 1 日午夜为 `v26.9.10000`，9 月 10 日 11:56 为 `v26.9.101156`。`0000` 是有效的午夜时间，不使用循环相加编码。Cargo 是唯一版本来源，GUI、CLI、构建号、更新清单和附件名称使用同一数字版本（只有标签带 `v`）。当前配置为 `26.9.101928`，即 2026-09-10 19:28。`scripts/version.py` 验证日期、闰年和时分范围。按数字分段比较可保持跨分钟/小时/日/月/年的顺序，不能直接按字符串字典序排序。同一分钟只能对应一个唯一标签；再次发布应等待下一分钟，不复用标签。支持年份 2000–2099。准备发布时设定版本并更新 Cargo.lock，构建时不会自动改写。
+标签采用 `vYY.M.DHHmm`，按 Asia/Shanghai 时区的发布时间生成。月份和日期不补零，`HHmm` 固定四位，不包含秒。例如：9 月 1 日午夜为 `v26.9.10000`，12 月 24 日 01:18 为 `v26.12.240118`。构建前设置 Cargo 版本并更新 Cargo.lock；GUI、CLI、构建号、更新清单和附件名称沿用该版本，不带 `v`。
+
+`scripts/version.py` 校验 2000–2099 年的日期和时间。版本按数字分段比较，不能按字符串排序。每次发布使用新标签；同一分钟内再次发布时，等待下一分钟。
 
 ### GitHub Actions 发布工作流
 
-`.github/workflows/release.yml` 在后续包含该工作流的提交推送 `v*` 标签时运行。它验证标签与 Cargo 一致，执行 Rust/Swift/Python 检查，在 arm64 macOS runner 构建并验证 DMG，为 ZIP/清单签名，最后发布附件齐全的稳定版 Release 并标记 latest。需要仓库 Actions Secret `SPARKLE_PRIVATE_KEY`，内容为既有 Sparkle 私钥的 base64 导出值。必须沿用已内嵌公钥对应的密钥，不能为 CI 新建签名身份，也不能将私钥写入源码。只能通过安全的 Secret 输入配置，不放入命令行参数或日志。
+`.github/workflows/release.yml` 在推送 `v*` 标签时运行。它验证标签与 Cargo 一致，执行 Rust/Swift/Python 检查，在 macOS runner 交叉编译两个架构并验证 DMG，为 ZIP/清单签名，最后发布附件齐全的稳定版 Release 并标记 latest。需要仓库 Actions Secret `SPARKLE_PRIVATE_KEY`，内容为既有 Sparkle 私钥的 base64 导出值。必须沿用已内嵌公钥对应的密钥，不能为 CI 新建签名身份，也不能将私钥写入源码。只能通过安全的 Secret 输入配置，不放入命令行参数或日志。
 
-`ci_sign_update.py` 从自身环境中移除 Secret，仅通过标准输入传给 `package_update.py`。先由 CryptoKit 派生并验证公钥一致性，再通过标准输入交给 Sparkle 签名和验证附件/清单；CI 无需导入钥匙串，也不生成私钥文件。构建/测试步骤不接收密钥。`publish_release.py` 拒绝已有 Release 或旧于既有稳定版的版本，要求四项附件及正确校验和，先上传至草稿，检查附件大小后才发布。创建草稿后若失败，保留草稿供人工检查，重试不覆盖。发布串行执行。当前自动流程生成 ad-hoc 构建，不包含 Developer ID/公证；未配置 Secret 会在构建前失败。既有 `v26.9.101046` 标签早于此工作流，本次从本地发布，不移动标签来触发自动化。
+`ci_sign_update.py` 从自身环境中移除 Secret，仅通过标准输入传给 `package_update.py`。先由 CryptoKit 派生并验证公钥一致性，再通过标准输入交给 Sparkle 签名和验证附件/清单；CI 无需导入钥匙串，也不生成私钥文件。构建/测试步骤不接收密钥。`publish_release.py` 拒绝已有 Release 或旧于既有稳定版的版本，要求五项附件（两个 DMG、Universal ZIP、更新清单和校验和）及正确校验和，先上传至草稿，检查附件大小后才发布。创建草稿后若失败，保留草稿供人工检查，重试不覆盖。发布串行执行。当前自动流程生成 ad-hoc 构建，不包含 Developer ID/公证；未配置 Secret 会在构建前失败。
 
-工作流还支持在 main 上点击 **Run workflow**（`workflow_dispatch`）仅做验证：使用已配置的 Secret 构建、签名并检查完整附件，但不创建或修改 Release。只有推送 `v*` 标签才会实际发布。仓库签名 Secret 已经授权配置，应仅供可信的发布代码使用。
+工作流还支持在 main 上点击 **Run workflow**（`workflow_dispatch`）仅做验证：使用已配置的 Secret 构建、签名并检查完整附件，但不创建或修改 Release。只有推送 `v*` 标签才会实际发布。签名 Secret 仅供可信的发布代码使用。

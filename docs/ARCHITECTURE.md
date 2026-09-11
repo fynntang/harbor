@@ -2,7 +2,15 @@
 
 English | [简体中文](zh-CN/ARCHITECTURE.md) · [Documentation](README.md)
 
-This page describes the checked-in implementation as reviewed on 2026-09-08. Code is authoritative when descriptions diverge. It is not an upstream compatibility promise or security certification.
+Harbor uses Swift for the macOS interface and native operations, and Rust for profile management. This page covers data routing, process checks and failure handling.
+
+## Architecture and distribution
+
+Development builds use the host architecture. Release builds compile Swift for both architectures, compile Rust for `aarch64-apple-darwin` and `x86_64-apple-darwin`, and merge them into a Universal GUI, CLI and native helper. Release signing gates require arm64 and x86_64 in all three programs.
+
+DMG packaging copies the Universal app, extracts the target slice of those programs, re-signs ad-hoc and verifies the mounted contents. Sparkle remains Universal. The two DMGs use `aarch64-apple-darwin` and `x86_64-apple-darwin` suffixes; the update ZIP stays Universal, allowing both architectures to share the existing signed feed. Publication requires five assets: both DMGs, ZIP, appcast and checksums.
+
+Browser cleanup recognizes only known hosts under the instance plugin directory’s `macos/arm64`, `macos/x64` or `macos/x86_64` paths; other identity, owner and process checks remain unchanged. Harbor’s dual-architecture build does not convert or guarantee Intel compatibility in the official client.
 
 ## Components
 
@@ -83,33 +91,22 @@ Clone also patches `LSEnvironment` for Launch Services; direct executable launch
 
 [auxiliary.rs](../crates/harbor-core/src/auxiliary.rs) scans executable paths beneath the app and both data directories. Known Crashpad, Computer Use and modifier-monitor orphans are eligible for SIGTERM only with the current user's UID, parent PID 1 and a rechecked executable/owner/parent/birth time. The recognized Chrome native host under this profile’s plugin cache can be disconnected even with a live browser parent. The exact `.plugin-appserver/codex` is eligible only when orphaned or parented by that same profile’s native host; hosts are signaled first. Browser processes and other profile paths are not targeted. There is no SIGKILL fallback. These process-table and libproc checks reduce accidental targeting; they are not atomic protection against a malicious same-user process.
 
+Managed-copy stop also backs up and removes matching Brave, Chrome and Edge native messaging registrations in `browser-registrations` under the profile directory before signaling helpers. Launch restores them only into an empty registration slot. Other instances’ registrations are preserved. This prevents browser reconnection without quitting the browser.
+
+
 Removal requires no scanned processes, `adopted_data=false`, the Harbor-style ID and exact profile-owned data paths. It checks overlap with other instances and reserved directories. Default removal exclusively moves the Profile into a private `retained` directory before trashing the app. Explicit data removal trashes both app and Profile. Errors attempt no-overwrite restoration; interruption or rollback failure may require manual recovery. No code empties Trash. Moving a whole account directory is different from parsing/copying its credentials. See [recovery](GUI.md#removal-and-recovery).
 
 [icon.rs](../crates/harbor-core/src/icon.rs) additionally requires the registered version/build and known icon layout, stages with `cp -cR`, signs/verifies and atomically swaps the app. It checks the main executable before staging/swap, not the broader auxiliary scan. The GUI requires JSON state `stopped`, so it also blocks known residual process states. Icon/removal eligibility is derived from manifest/path checks, not a separate proof of clone origin. Lifecycle stop/remove do not enforce version equality as icon/start do.
 
-## Diagnostics and evidence boundaries
+## Diagnostics and limitations
 
 Text `status` and the process section of `doctor` inspect main processes only. JSON status/list can report `helpers_running`; their `pids` field still lists only main processes. None reads login identity or verifies a running process's environment. `doctor` fails on path/metadata/identity/signature errors, but version differences, absent old build snapshots and reported launch conflicts alone do not set the diagnostic failure flag. JSON doctor wraps a completed failed diagnosis with `ok=true`, exit 0 and `data.passed=false`; store setup errors still fail the envelope.
 
 The system does not isolate HOME, Keychain, repositories, system permissions or all Skills/MCP storage. It does not implement OAuth callback routing, automatic official updates, account/database migration or arbitrary client support. It cannot stop clients from following configuration paths outside routed data directories.
 
-## Documentation audit, 2026-09-08
+## Version source
 
-These differences were resolved in documentation, without changing program behavior:
-
-| Earlier description | Current code and documentation |
-|---|---|
-| Product described mainly as a Rust launcher; GUI actions omitted | Swift GUI + CLI; stop/removal and native helper are included. |
-| Program never sends kill signals | Supported orphan cleanup uses SIGTERM; main quit uses AppKit; no SIGKILL fallback. |
-| All commands merely reference account data | Adoption references in place; removal may move entire directories to retained storage/Trash. |
-| Dry run or doctor success implies launch readiness | Dry run is limited; doctor warnings can pass; launch enforces its own version gate. |
-| Direct app launch has no profile routing | Clone has LSEnvironment, but direct launch bypasses Harbor validation/allowlist. |
-| Text/JSON state and GUI/CLI icon guards are interchangeable | Main-only vs auxiliary-aware checks are documented separately. |
-| Prepared/adopted apps are vendor-verified | Vendor trust verification belongs to clone; create/adopt inspect layout/metadata. |
-| One current version and no Python requirement | Versions derive from Cargo calendar version `26.9.101928`; packaging uses Python 3. |
-| Old experiment paths and historical tests read as current prerequisites/results | Examples are generic; [Testing](TESTING.md) separates fresh checks and historical evidence. |
-
-After the audit, the versions were unified: [Cargo.toml](../Cargo.toml) supplies `26.9.101928`, and [packaging](../scripts/build_and_run.sh) reads the CLI version from Cargo metadata for the GUI. The GUI displays `26.9.101928`; the build version preserves the canonical Cargo form for Sparkle comparisons. Documentation localization does not imply localized UI strings.
+[Cargo.toml](../Cargo.toml) defines the version. The [build script](../scripts/build_and_run.sh) reads Cargo metadata to set the GUI version and build number. CLI, GUI and Sparkle use the same numeric version.
 
 ## GUI language state
 
@@ -118,5 +115,3 @@ The GUI owns one observable `GUILocalization` in `HarborStore`. `UserDefaults` s
 ## Managed copy update
 
 `update` holds the registry lock, verifies the existing identity/version and stopped state, then prepares a vendor-verified replacement with the existing profile identity and new version snapshot. It checks all app/data helper processes before staging and immediately before publication. Custom icons are carried forward before signing. The app is atomically exchanged, its final signature verified, and a flushed temporary manifest atomically replaces `profile.json`. Failure before manifest publication swaps the old app back; rollback failure retains staging and reports its path. The app/manifest pair is not a single filesystem transaction: interruption between the two writes leaves a detectable version mismatch and requires inspection. No account database is backed up or rolled back.
-
-Managed-copy stop also backs up and removes matching Brave, Chrome and Edge native messaging registrations in `browser-registrations` under the profile directory before signaling helpers. Launch restores them only into an empty registration slot. Other instances’ registrations are preserved. This prevents browser reconnection without quitting the browser.

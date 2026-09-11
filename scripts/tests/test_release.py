@@ -28,11 +28,15 @@ class ReleaseTests(unittest.TestCase):
             directory = Path(temp)
             with self.assertRaises(ValueError):
                 assets_for('v26.9.101046', directory)
-            names = ['Harbor-26.9.101046-macos-arm64.dmg', 'Harbor-26.9.101046-macos-arm64.zip', 'appcast.xml']
+            names = ['Harbor-26.9.101046-aarch64-apple-darwin.dmg', 'Harbor-26.9.101046-x86_64-apple-darwin.dmg', 'Harbor-26.9.101046-macos-universal.zip', 'appcast.xml']
             for name in names:
                 (directory / name).write_bytes(b'synthetic fixture')
             (directory / 'SHA256SUMS.txt').write_text(''.join(f'{hashlib.sha256((directory/name).read_bytes()).hexdigest()}  {name}\n' for name in names))
-            self.assertEqual(len(assets_for('v26.9.101046', directory)), 4)
+            self.assertEqual(len(assets_for('v26.9.101046', directory)), 5)
+            (directory / names[1]).unlink()
+            with self.assertRaises(ValueError):
+                assets_for('v26.9.101046', directory)
+            (directory / names[1]).write_bytes(b'synthetic fixture')
             (directory / names[0]).write_bytes(b'changed')
             with self.assertRaises(ValueError):
                 assets_for('v26.9.101046', directory)

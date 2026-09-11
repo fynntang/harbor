@@ -2,7 +2,7 @@
 
 [English](../REFERENCES.md) | 简体中文 · [文档目录](README.md)
 
-这些来源解释设计依据并提供进一步阅读，不表示 OpenAI、Apple 或 Doppel 对本项目背书。Harbor 当前行为由源码定义，详见[架构说明](ARCHITECTURE.md)。外部页面和第三方分支可能变化，本轮文档核查未重新验证其内容。
+以下是实现 Harbor 时参考的文档和项目。具体行为见[架构说明](ARCHITECTURE.md)。
 
 ## 官方文档
 
@@ -26,7 +26,7 @@
 - [Doppel 仓库](https://github.com/thomast8/doppel)：历史上用于参考按 Profile 分流桌面应用及更新器控制。
 - [Doppel engine](https://github.com/thomast8/doppel/blob/main/engine/doppel-engine.zsh)：指向可变分支，不是固定版本的兼容性规范。
 
-项目历史将其记录为设计参考，而非复制实现。Harbor 使用自己的 Rust/Swift 代码，不打包第三方 engine 或厂商应用。不实现 Doppel 的包装器、ASAR 修改、OAuth 路由或自动更新流程。本地签名采用过滤依赖厂商身份权限、保留嵌套框架签名的一般方向；实际行为和限制以 [clone.rs](../../crates/harbor-core/src/clone.rs) 为准。
+Harbor 参考了 Doppel 的设计，使用自己的 Rust/Swift 实现，不打包其 engine 或厂商应用，也不修改 ASAR 或处理 OAuth 回调。本地签名会过滤依赖厂商身份的权限，保留嵌套框架签名，具体见 [clone.rs](../../crates/harbor-core/src/clone.rs)。
 
 ## 本机证据与资源
 

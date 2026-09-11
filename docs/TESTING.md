@@ -2,9 +2,13 @@
 
 English | [简体中文](zh-CN/TESTING.md) · [Documentation](README.md)
 
-## Current documentation audit: 2026-09-08
+## Intel support validation: 2026-09-11
 
-The implementation was read before rewriting/translating the docs. This audit changed documentation only. The following checks were rerun on the current local working tree, not inferred from old records:
+Current source passed dual-architecture builds and verification of both architecture-specific DMGs; 34 GUI XCTest cases and 53 Rust core tests passed under Rosetta. Fifteen packaging tests passed. Detailed records appear at the end of this page. Physical Intel hardware and official Intel client login have not been accepted; Rosetta tests are not Intel hardware acceptance. Earlier dated checks and release records below are historical evidence.
+
+## Documentation audit: 2026-09-08 (historical)
+
+These checks were run on September 8 against the source at that time. Their versions and test counts are retained as a historical record.
 
 | Check | Result |
 |---|---|
@@ -47,7 +51,7 @@ Unit/mock tests are not proof of all app capabilities. They use generated plists
 
 ## Historical local experiments: 2026-09-08
 
-The following summarizes earlier development records. These are historical observations, not reruns on the final documentation tree, a release certification or an assertion about current installed instances.
+These experiments were run on September 8. The observations below describe the app and test environment used that day.
 
 | Experiment | Recorded result and boundary |
 |---|---|
@@ -83,7 +87,7 @@ Do not publish complete client logs or copy real credentials into tests. `doctor
 
 ## Version unification: 2026-09-08
 
-CLI, core and GUI versions now use `0.0.1`; packaging reads the CLI version from Cargo metadata instead of a second hard-coded version. macOS build number remains `1`. Old version text in an application-layout error and comments was removed.
+CLI, core and GUI versions were unified at `0.0.1`; packaging reads the CLI version from Cargo metadata instead of a second hard-coded version. The macOS build number was `1` at that point. Old version text in an application-layout error and comments was removed.
 
 Formatting/shell syntax checks, 11 profile tests and 6 version tests passed. Packaging, local signature verification and GUI startup passed; the built app's Info.plist and bundled `harbor --version` were checked against Cargo metadata and all report `0.0.1`. The full Rust/Swift suites were not rerun for this version-only change.
 
@@ -100,7 +104,7 @@ Formatting/shell syntax checks, 11 profile tests and 6 version tests passed. Pac
 - GitHub Actions for commit `edef48f` completed successfully on macOS and Ubuntu.
 - Local release compilation of the Swift GUI and native helper passed. The development bundle still passes build, signing verification and launch checks.
 - Five Python release-gate tests passed. An actual ad-hoc development bundle was rejected by the release verifier. Shell syntax, paired documentation and local links passed (12 pages, 124 links/anchors, 34 fenced blocks).
-- No valid Developer ID Application identity was available in the local keychain. Actual Developer ID signing, secure timestamping, notarization, installation on another Mac and Release publishing remain unverified. The current change provides the signing configuration and verification gates only.
+- No valid Developer ID Application identity was available in the local keychain. That check covered the signing configuration and validation gates, without a Developer ID signing or notarization run.
 
 ## Instance name badges (2026-09-08)
 
@@ -120,8 +124,12 @@ Sparkle 2.9.6 resolved with a pinned revision/checksum. The 30-test Swift suite 
 
 ## Calendar version checks (2026-09-10)
 
-Current release label is `v26.09.101046`, derived from Cargo `26.9.101046`. Cargo check and 13 Python tests passed, including date validation, padding and version gates. Three updater tests passed, including Sparkle's actual comparator for same-day increments and day/month/year rollovers. The release build and signed ZIP/appcast generation passed; display version, canonical build and download filename were checked. Historical 0.0.1 results above remain historical; no tag or release was published by this change.
+The initial release label was `v26.09.101046`, derived from Cargo `26.9.101046`. Cargo check and 13 Python tests passed, including date validation, padding and version gates. Three updater tests passed, including Sparkle's actual comparator for same-day increments and day/month/year rollovers. The release build and signed ZIP/appcast generation passed; display version, canonical build and download filename were checked. Historical 0.0.1 results above remain historical.
 
-The final date/time format supersedes padded labels: `vYY.M.DHHmm`. Both midnight (`26.9.10000`) and 11:56 on the 10th (`26.9.101156`) are covered. Thirteen Python tests and three Sparkle updater tests passed; invalid times are rejected and actual Sparkle comparisons cover minute/hour/day/month/year boundaries. Release packaging, signatures and appcast generation passed with matching GUI/build version `26.9.101046`. No public release was changed.
+The final date/time format supersedes padded labels: `vYY.M.DHHmm`. Both midnight (`26.9.10000`) and 11:56 on the 10th (`26.9.101156`) are covered. Thirteen Python tests and three Sparkle updater tests passed; invalid times are rejected and actual Sparkle comparisons cover minute/hour/day/month/year boundaries. Release packaging, signatures and appcast generation passed with matching GUI/build version `26.9.101046`.
 
-Browser cleanup follow-up: an isolated process-tree test preserves the browser parent, another profile and an unrelated active server while terminating the selected native host/server. Registration tests cover repeatable pause/restore, preserving other registrations and rejecting symlinks. On local Toobit, a signal-only cleanup initially succeeded but Brave automatically reconnected. With matching registrations paused, Toobit remained stopped at the delayed recheck and Brave retained PID 84969. Real registration restore was not exercised; it is covered by the isolated test. Workspace tests, Clippy and the development app build passed. This fix is not in the published v26.9.101046 artifacts.
+Browser cleanup follow-up: an isolated process-tree test preserves the browser parent, another profile and an unrelated active server while terminating the selected native host/server. Registration tests cover repeatable pause/restore, preserving other registrations and rejecting symlinks. On local Toobit, a signal-only cleanup initially succeeded but Brave automatically reconnected. With matching registrations paused, Toobit remained stopped at the delayed recheck and Brave retained PID 84969. Real registration restore was not exercised; it is covered by the isolated test. Workspace tests, Clippy and the development app build passed. This fix was delivered in v26.9.101853.
+
+Universal support (2026-09-11): the release GUI, CLI and native helper each contain arm64 and x86_64 slices. The ad-hoc DMG passed mount, signature and byte-content verification. The x86_64 CLI ran under Rosetta; 34 GUI XCTest cases and 53 Rust core tests passed under Rosetta. SwiftPM’s default ARM test loader could not load the Intel bundle, so GUI tests were rerun successfully using `arch -x86_64 xcrun xctest`. Fifteen Python packaging tests, native helper cleanup tests, Clippy and native development build passed. Intel physical hardware and the official Intel client have not been validated.
+
+Architecture-specific DMGs: both `aarch64-apple-darwin.dmg` and `x86_64-apple-darwin.dmg` passed executable-architecture, signature, mount and content verification. A transient busy detach was recovered; the packager now retries detaching up to five times. The original Universal app remains the update ZIP source. Fifteen packaging tests pass, including rejection of a missing Intel DMG.

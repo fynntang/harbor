@@ -7,17 +7,19 @@ import subprocess
 import sys
 from pathlib import Path
 from version import validate_display
+from installation import FIRST_LAUNCH
 
 
 def assets_for(tag, directory):
     if not tag.startswith('v'):
         raise ValueError('Expected a v-prefixed release tag')
     version = validate_display(tag[1:])
-    names = [f'Harbor-{version}-macos-arm64.{ext}' for ext in ('dmg', 'zip')]
+    names = [f'Harbor-{version}-{target}.dmg' for target in ('aarch64-apple-darwin', 'x86_64-apple-darwin')]
+    names += [f'Harbor-{version}-macos-universal.zip']
     names += ['appcast.xml', 'SHA256SUMS.txt']
     assets = [directory / name for name in names]
     if any(not asset.is_file() for asset in assets):
-        raise ValueError('Release requires DMG, ZIP, signed appcast and checksums')
+        raise ValueError('Release requires both architecture DMGs, Universal ZIP, signed appcast and checksums')
     hashes = dict(line.split('  ', 1)[::-1] for line in assets[-1].read_text().splitlines())
     for asset in assets[:-1]:
         if hashes.get(asset.name) != hashlib.sha256(asset.read_bytes()).hexdigest():
@@ -43,7 +45,7 @@ def main():
         if current <= previous:
             raise ValueError('New stable release must be newer than the existing stable release')
     notes = directory / 'release-notes.md'
-    notes.write_text(f'''Harbor {tag}\n\nmacOS 14+ · Apple Silicon (arm64)\n\n打开 DMG，将 Harbor.app 拖入应用程序。现有 0.0.1 用户需手动安装一次以启用后续自动更新。\nOpen the DMG and drag Harbor.app into Applications. Existing 0.0.1 users need one manual upgrade to enable future automatic updates.\n\n本版本为 ad-hoc 签名，未经 Apple 公证；Sparkle 更新包和清单均有 Ed25519 签名。\nThis build is ad-hoc signed and not notarized by Apple. The Sparkle update archive and feed are Ed25519-signed.\n\n首次打开 / First launch: https://support.apple.com/en-us/102445\n''')
+    notes.write_text(f'''Harbor {tag}\n\nmacOS 14+ · Apple Silicon + Intel (arm64 / x86_64)\n\nApple Silicon 选择 aarch64-apple-darwin.dmg，Intel 选择 x86_64-apple-darwin.dmg。打开 DMG，将 Harbor.app 拖入应用程序。现有 0.0.1 用户需手动安装一次以启用后续自动更新。\nChoose aarch64-apple-darwin.dmg for Apple Silicon or x86_64-apple-darwin.dmg for Intel. Open the DMG and drag Harbor.app into Applications. Existing 0.0.1 users need one manual upgrade to enable future automatic updates.\n\n本版本为 ad-hoc 签名，未经 Apple 公证；Sparkle 更新包和清单均有 Ed25519 签名。\nThis build is ad-hoc signed and not notarized by Apple. The Sparkle update archive and feed are Ed25519-signed.\n\n{FIRST_LAUNCH}''')
     subprocess.run(['gh', 'release', 'create', tag, *map(str, assets), '--repo', repository, '--verify-tag', '--draft', '--title', f'Harbor {tag}', '--notes-file', str(notes), '--generate-notes'], check=True)
     # Inspect uploaded byte lengths before making the feed reachable as latest.
     release = json.loads(subprocess.check_output(['gh', 'release', 'view', tag, '--repo', repository, '--json', 'assets,isDraft']))

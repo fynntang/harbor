@@ -32,10 +32,10 @@ class UpdateTests(unittest.TestCase):
 
     def test_appcast_pins_archive_version_signature_and_size(self):
         signature = base64.b64encode(bytes(64)).decode()
-        root = ET.fromstring(appcast("26.9.101047", "Harbor-26.9.101047-macos-arm64.zip", 123, signature))
+        root = ET.fromstring(appcast("26.9.101047", "Harbor-26.9.101047-macos-universal.zip", 123, signature))
         item = root.find("channel/item")
         self.assertEqual(item.find(f"{{{NS}}}version").text, "26.9.101047")
         enclosure = item.find("enclosure")
         self.assertEqual(enclosure.attrib["length"], "123")
         self.assertEqual(enclosure.attrib[f"{{{NS}}}edSignature"], signature)
-        self.assertIn("/v26.9.101047/Harbor-26.9.101047-macos-arm64.zip", enclosure.attrib["url"])
+        self.assertIn("/v26.9.101047/Harbor-26.9.101047-macos-universal.zip", enclosure.attrib["url"])

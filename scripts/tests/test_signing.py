@@ -62,8 +62,12 @@ class SigningTests(unittest.TestCase):
         for version, cli in [("0.0.2", "harbor 0.0.1"), ("0.0.1", "harbor 0.0.2")]:
             with self.assertRaises(ValueError):
                 signing.check_versions(info, version, cli)
-        signing.check_architectures(["arm64\n"] * 3)
-        for architectures in [["arm64", "x86_64", "arm64"], ["arm64"] * 2, ["arm64 x86_64"] * 3]:
+        for arch in ("arm64", "x86_64"):
+            signing.check_architectures([arch] * 3, {arch})
+            with self.assertRaises(ValueError):
+                signing.check_architectures(["arm64 x86_64"] * 3, {arch})
+        signing.check_architectures(["arm64 x86_64\n", "x86_64 arm64", "arm64 x86_64"])
+        for architectures in [["arm64", "x86_64", "arm64"], ["arm64"] * 2, ["arm64"] * 3, ["x86_64"] * 3]:
             with self.assertRaises(ValueError):
                 signing.check_architectures(architectures)
 

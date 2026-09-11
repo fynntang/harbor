@@ -2,7 +2,7 @@
 
 English | [简体中文](zh-CN/REFERENCES.md) · [Documentation](README.md)
 
-These references explain design inputs and provide further reading. They do not imply endorsement by OpenAI, Apple or Doppel. Current Harbor behavior is defined by its source, as described in [Architecture](ARCHITECTURE.md). External pages and third-party branches can change; their contents were not revalidated in this documentation audit.
+These documents and projects informed Harbor’s implementation. See [Architecture](ARCHITECTURE.md) for Harbor’s behavior.
 
 ## Primary documentation
 
@@ -26,7 +26,7 @@ The local macOS SDK headers also informed native quit handling. Harbor reads app
 - [Doppel repository](https://github.com/thomast8/doppel): historical reference for profile-based desktop routing and updater controls.
 - [Doppel engine](https://github.com/thomast8/doppel/blob/main/engine/doppel-engine.zsh): a mutable branch link, not a pinned compatibility specification.
 
-Project history records these as design references rather than copied implementation. Harbor has its own Rust/Swift code and does not bundle third-party engine code or vendor apps. It does not implement Doppel's wrapper, ASAR modifications, OAuth routing or automatic-update workflows. The local signature strategy follows the general approach of filtering vendor-bound entitlements while preserving nested framework signatures; behavior and limits must be read from [clone.rs](../crates/harbor-core/src/clone.rs).
+Harbor draws on Doppel’s design and uses its own Rust/Swift implementation. It does not bundle Doppel’s engine or vendor apps, modify ASAR, or route OAuth callbacks. Local signing filters vendor-bound entitlements and preserves nested framework signatures; see [clone.rs](../crates/harbor-core/src/clone.rs).
 
 ## Local evidence and assets
 

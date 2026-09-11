@@ -16,6 +16,9 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal --component rustfmt --component clippy
           rustup default stable
+          if [ "$RUNNER_OS" = macOS ]; then
+            rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          fi
       - name: Check release signing gates
         run: python3 -m unittest discover -s scripts/tests -v
       - name: Format, test, lint and build

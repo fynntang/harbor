@@ -40,11 +40,19 @@ for row in parsed:
         except ProcessLookupError: pass
 PY
 fi
-cargo build --release --locked -p harbor-cli
+SWIFT_BUILD_ARGS=(--configuration "$SWIFT_CONFIGURATION")
+if [ "$SWIFT_CONFIGURATION" = release ]; then
+    for target in aarch64-apple-darwin x86_64-apple-darwin; do
+        cargo build --release --locked -p harbor-cli --target "$target"
+    done
+    SWIFT_BUILD_ARGS+=(--arch arm64 --arch x86_64)
+else
+    cargo build --release --locked -p harbor-cli
+fi
 APP_BUILD_VERSION="$(cargo metadata --locked --no-deps --format-version 1 | python3 -c 'import json, sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"] == "harbor-cli"))')"
 APP_VERSION="$(python3 scripts/version.py "$APP_BUILD_VERSION")"
-swift build --configuration "$SWIFT_CONFIGURATION" --package-path apps/Harbor --scratch-path target/swift-harbor
-SWIFT_BIN="$(swift build --configuration "$SWIFT_CONFIGURATION" --package-path apps/Harbor --scratch-path target/swift-harbor --show-bin-path)/Harbor"
+swift build "${SWIFT_BUILD_ARGS[@]}" --package-path apps/Harbor --scratch-path target/swift-harbor
+SWIFT_BIN="$(swift build "${SWIFT_BUILD_ARGS[@]}" --package-path apps/Harbor --scratch-path target/swift-harbor --show-bin-path)/Harbor"
 mkdir -p "$(dirname "$APP_BUNDLE")"
 STAGING="$(mktemp -d "$ROOT_DIR/dist/.harbor-build.XXXXXX")"
 trap 'rm -rf "$STAGING"' EXIT
@@ -52,7 +60,11 @@ CONTENTS="$STAGING/Harbor.app/Contents"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Helpers" "$CONTENTS/Resources"
 cp apps/Harbor/Resources/Harbor.icns "$CONTENTS/Resources/Harbor.icns"
 cp "$SWIFT_BIN" "$CONTENTS/MacOS/Harbor"
-cp target/release/harbor "$CONTENTS/Helpers/harbor"
+if [ "$SWIFT_CONFIGURATION" = release ]; then
+    /usr/bin/lipo -create target/aarch64-apple-darwin/release/harbor target/x86_64-apple-darwin/release/harbor -output "$CONTENTS/Helpers/harbor"
+else
+    cp target/release/harbor "$CONTENTS/Helpers/harbor"
+fi
 cp "$(dirname "$SWIFT_BIN")/harbor-native" "$CONTENTS/Helpers/harbor-native"
 cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

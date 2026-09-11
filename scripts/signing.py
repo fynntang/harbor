@@ -59,9 +59,9 @@ def check_versions(info, version, cli_version):
         raise ValueError("The release must declare its supported macOS minimum")
 
 
-def check_architectures(architectures):
-    if len(architectures) != 3 or any(value.strip() != "arm64" for value in architectures):
-        raise ValueError("This release supports arm64 only; GUI and both helpers must all be arm64")
+def check_architectures(architectures, expected=frozenset({"arm64", "x86_64"})):
+    if len(architectures) != 3 or any(set(value.split()) != expected for value in architectures):
+        raise ValueError("GUI and both helpers must contain exactly the requested architectures")
 
 
 def check_adhoc_signature(details, identifier):
@@ -72,7 +72,7 @@ def check_adhoc_signature(details, identifier):
         raise ValueError("Ad-hoc artifacts must not claim a signing authority")
 
 
-def verify(bundle, version, team=None):
+def verify(bundle, version, team=None, architectures=frozenset({"arm64", "x86_64"})):
     bundle = Path(bundle)
     contents = bundle / "Contents"
     paths = [bundle, contents / "Helpers/harbor", contents / "Helpers/harbor-native"]
@@ -85,7 +85,7 @@ def verify(bundle, version, team=None):
             run("/usr/bin/codesign", "--verify", "--strict", "--test-requirement", "anchor apple generic", str(path))
             check_signature(run("/usr/bin/codesign", "-dvv", str(path)), team, identifier)
     run("/usr/bin/codesign", "--verify", "--deep", "--strict", str(bundle))
-    check_architectures([run("/usr/bin/lipo", "-archs", str(path)) for path in [contents / "MacOS/Harbor", *paths[1:]]])
+    check_architectures([run("/usr/bin/lipo", "-archs", str(path)) for path in [contents / "MacOS/Harbor", *paths[1:]]], architectures)
     with (contents / "Info.plist").open("rb") as stream:
         check_versions(plistlib.load(stream), version, run(str(paths[1]), "--version"))
 

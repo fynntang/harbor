@@ -2,9 +2,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-Harbor is a macOS GUI and Rust CLI for creating and launching separate local ChatGPT/Codex desktop profiles. It routes each instance to its own Codex and GUI data directories. It is **not a security sandbox**: HOME, Keychain, SSH, Git, Docker, system permissions and repository access remain shared.
-
-The adapter checks the tested Chromium/Codex app layout. It does not support every app named ChatGPT or arbitrary AI clients. Local copies are ad-hoc signed and do not retain the vendor identity or notarization. OAuth, Browser/Computer Use and complete account isolation are not guaranteed.
+Harbor creates and manages ChatGPT/Codex desktop copies with separate data directories for different accounts. It provides a macOS app and a Rust CLI.
 
 [Documentation](docs/README.md) · [GUI guide](docs/GUI.md) · [Implementation and limits](docs/ARCHITECTURE.md) · [Testing](docs/TESTING.md) · [References](docs/REFERENCES.md)
 
@@ -12,21 +10,39 @@ The adapter checks the tested Chromium/Codex app layout. It does not support eve
     <img src="https://www.nxgntools.com/api/embed/harbor-1?type=FEATURED_ON" alt="Featured on NxGn Tools" style="height: 48px; width: auto;" />
 </a>
 
+## Platforms and installers
+
+Harbor supports macOS 14+ on Apple Silicon and Intel Macs. Release builds produce a Universal app, then package separate installers:
+
+| Mac type | DMG filename |
+|---|---|
+| Apple Silicon (M series) | `Harbor-<version>-aarch64-apple-darwin.dmg` |
+| Intel (x64 / x86_64) | `Harbor-<version>-x86_64-apple-darwin.dmg` |
+
+Both architectures use `Harbor-<version>-macos-universal.zip` for automatic updates. Intel copies require an official client with Intel binaries; Harbor does not convert ARM clients to x86. Validation includes Intel tests under Rosetta, but not physical Intel hardware or the official Intel client. See [testing evidence](docs/TESTING.md).
+
 ## Start with the GUI
 
-Build requirements: macOS 14+, Rust 1.89+ with Cargo, Swift 6+ with macOS SDK/tools, Bash and Python 3. The packaging script uses Python 3; the packaged app does not require a separately installed Harbor CLI or Python interpreter.
+1. Download the DMG for your Mac from [GitHub Releases](https://github.com/fynntang/harbor/releases), open it and drag Harbor.app into Applications.
+2. Install the official ChatGPT/Codex client.
+3. Open Harbor, choose **Create copy**, enter a name such as `work` and select the official app.
+4. Click **Start**, then sign in inside the copy's window.
 
-Install the official app first, then run from the repository root:
+Harbor is ad-hoc signed and is not notarized by Apple. If macOS blocks developer verification, see [first-launch instructions](docs/GUI.md#first-launch). The app includes its CLI and native helper; you do not need to install Rust or Python.
+
+The GUI can create, update, start, stop and delete copies, inspect their status and change icons. Icons can use the official image with a colored name badge. After the local official client updates, Harbor flags copies that can be updated. Harbor also supports [automatic update checks](docs/GUI.md#harbor-automatic-updates), with confirmation before installation.
+
+Closing the window keeps Harbor running in the menu bar; quitting Harbor leaves client copies running. Choose English or 简体中文 in the toolbar or menus; the choice is saved. Backend diagnostics and system dialogs retain their original or system language.
+
+### Run from source
+
+You need macOS 14+, Rust 1.89+ with Cargo, Swift 6+ with the macOS SDK, Bash and Python 3. Run from the repository root:
 
 ```bash
 ./scripts/build_and_run.sh
 ```
 
-Open `dist/Harbor.app`, choose **创建副本** (Create copy), enter `work`, select the official source app and create it. Click **启动** (Start), then sign in inside the new client window. Creating a copy does not start it or sign in automatically.
-
-The GUI supports creation, start, stop, deletion, status refresh, diagnostics, instance icons and opening paths in Finder. Closing its window keeps Harbor's menu-bar entry; quitting Harbor leaves launched clients running. There is no login item or background daemon. Choose English or 简体中文 in the toolbar language picker, Harbor menu or menu-bar entry. Changes apply immediately and persist across launches. Backend diagnostics and system-owned dialogs retain their original/system language.
-
-The app bundles both `harbor` and `harbor-native`. Keep the entire bundle together. Codex's Run action uses the same build script.
+The script builds and opens `dist/Harbor.app`. Codex's Run action uses the same script. Keep the complete `.app` directory when moving it.
 
 ## Start with the CLI
 
@@ -74,7 +90,7 @@ harbor adopt work \
   --gui-home "/absolute/path/existing-gui"
 ```
 
-`adopt` records references in place; it does not copy credentials, move data or sign the app. Both data directories must exist and must not overlap the profile registry. Its metadata/logs live under `profiles/work/`; account data stays at the supplied paths. Old experiment directories are not prerequisites.
+`adopt` records references in place; it does not copy credentials, move data or sign the app. Both data directories must exist and must not overlap the profile registry. Its metadata/logs live under `profiles/work/`; account data stays at the supplied paths.
 
 Use `create` for an already-prepared app that needs **new empty** data directories:
 
@@ -125,6 +141,10 @@ Review the scope first. Add `--delete-data` only to also move the whole profile 
 
 ## Routing, versions and limits
 
+Harbor separates Codex and GUI data directories; it is not a security sandbox. HOME, Keychain, SSH, Git, Docker, system permissions and repository access remain shared.
+
+The adapter checks the tested Chromium/Codex app layout. It does not support every app named ChatGPT or arbitrary AI clients. Local copies are ad-hoc signed and do not retain the vendor identity or notarization. OAuth, Browser/Computer Use and complete account isolation are not guaranteed.
+
 `start` fixes `CODEX_HOME`, `CODEX_ELECTRON_USER_DATA_PATH`, `CODEX_SPARKLE_ENABLED=false` and one `--user-data-dir` argument. `--cwd` defaults to the user's HOME, not the calling repository. The environment uses an allowlist; extra variable **names** can be supplied through repeated `--pass-env` at registration. Values are read at launch and never stored in `profile.json`. Reserved/injection-sensitive keys are rejected. See [environment behavior](docs/ARCHITECTURE.md#environment).
 
 `start --dry-run` validates registered paths and prints routing; it does not perform the full launch/version/signature checks. `doctor` reports version changes and missing old build snapshots as warnings, which alone do not fail the command. `start` still blocks those cases by default. After reviewing a version change, the CLI supports:
@@ -138,6 +158,12 @@ This is a one-run exception, not a manifest update or database migration. It doe
 Launch through Harbor to retain these checks. A clone also has `LSEnvironment` values for Launch Services, but double-clicking its `.app` bypasses Harbor's validation and allowlist. `create`/`adopt` do not patch those values.
 
 Harbor does not automatically download official client updates, arbitrate OAuth URL callbacks, isolate all Skills/MCP storage, prevent access to other projects, or rewrite client configuration overrides. The two desktop-specific `CODEX_*` switches are version-dependent compatibility controls. `remove` may move account directories as a unit; Harbor does not parse or copy credential contents.
+
+## Next milestone
+
+The next milestone is **Windows support**, starting with x64 and covering instance management, a GUI, system tray controls, installation and updates. First verify that the official client can reliably use separate data directories, then adapt the core and GUI. Windows version requirements and ARM64 support remain to be assessed.
+
+Harbor currently supports macOS; Windows is planned. See the [roadmap](docs/ROADMAP.md) for steps and completion criteria.
 
 ## Development and documentation
 
@@ -156,10 +182,6 @@ cargo run -p harbor-cli -- --help
 swift test --package-path apps/Harbor --scratch-path target/swift-harbor
 ```
 
-Release labels use `vYY.M.DHHmm`, currently `v26.9.101928`. Cargo, CLI, GUI, build metadata and asset names all use `26.9.101928`, derived from Cargo metadata. Month/day have no leading zero; the time suffix is four-digit `HHmm`. The package declares MIT licensing. Local ad-hoc packaging is not a notarized distribution release. [Testing](docs/TESTING.md) separates current checks from historical client experiments and outstanding account/GUI validation. `SOURCE_CHECKS.txt` is a historical snapshot, not current acceptance evidence.
+Harbor is MIT licensed and publishes updates through GitHub Releases with `vYY.M.DHHmm` tags. [Cargo.toml](Cargo.toml) defines the version used by the GUI, CLI, build metadata and asset names. See the [release guide](docs/GUI.md#release-build).
 
-Download the macOS 14+ Apple Silicon DMG from [GitHub Releases](https://github.com/fynntang/harbor/releases), open it and drag Harbor.app into Applications. ZIP is also available. It uses Release builds with local ad-hoc signatures and is not notarized. See [release builds and signing](docs/GUI.md#release-build) for installation, free distribution and the separate Developer ID path.
-
-The GUI can generate instance icons from the official icon with a colored name badge and monochrome menu-bar initials. Creation previews the badge; existing stopped copies can use **Change Icon → Original with Badge**.
-
-Harbor release builds support signed automatic update checks through GitHub Releases, with confirmation before installation. Existing 0.0.1 users need one manual upgrade. See [automatic updates and publishing](docs/GUI.md#harbor-automatic-updates).
+[Testing](docs/TESTING.md) records dated results and checks still needed. `SOURCE_CHECKS.txt` is an early development snapshot.

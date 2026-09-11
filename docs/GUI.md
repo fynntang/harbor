@@ -4,7 +4,7 @@ English | [简体中文](zh-CN/GUI.md) · [Documentation](README.md) · [Project
 
 ## Build and run
 
-Requirements: macOS 14+, Rust 1.89+/Cargo, Swift 6+/macOS SDK and tools, Bash and Python 3. SwiftPM has no third-party package dependencies.
+Requirements: macOS 14+, Rust 1.89+/Cargo, Swift 6+/macOS SDK and tools, Bash and Python 3. SwiftPM downloads the pinned Sparkle dependency for Harbor updates.
 
 Run from the repository root:
 
@@ -17,7 +17,7 @@ swift test --package-path apps/Harbor --scratch-path target/swift-harbor
 
 The result is `dist/Harbor.app`, containing a debug Swift GUI/native helper and release Rust CLI. It is locally ad-hoc signed, not Developer ID signed or notarized. Copy the complete app bundle if moving it. `cargo install` alone does not provide the native helper required by stop/remove.
 
-Every build mode, including `--build-only`, checks for operations using this checkout's bundled helpers, refuses rebuilding while they run, and stops this checkout's existing Harbor GUI. It does not stop client instances. `--verify` launches Harbor and checks that its exact executable remains running after one second; it is not a UI or account test. `--debug` uses LLDB; `--logs` and `--telemetry` open system log streams and do not guarantee that every action emits log events.
+Development modes, including `--build-only`, check for operations using this checkout's bundled helpers, refuse rebuilding while they run, and stop this checkout's existing Harbor GUI. It does not stop client instances. `--verify` launches Harbor and checks that its exact executable remains running after one second; it is not a UI or account test. `--debug` uses LLDB; `--logs` and `--telemetry` open system log streams and do not guarantee that every action emits log events.
 
 Codex's Run action points to this script. An isolated registry can be selected with:
 
@@ -45,9 +45,9 @@ Backend diagnostics, CLI help, technical reports and system-owned menu/dialog te
 | 刷新 / Refresh | Reloads registrations/state; also runs on window activation and ⌘R. |
 | Folder controls | Reveal paths in Finder. The log-directory button currently reveals the parent of `codex_home`; for adopted data that may differ from Harbor's log directory. |
 
-Mutating operations and refresh are serialized by the store's busy state. Errors are shown without assuming success. App identity or version differences are flagged as needing inspection. The GUI has no `--accept-version-change`, environment-variable editor or restore button. An invalid registry entry can fail the entire list operation; this is not a repair UI.
+Changes and refresh run one at a time; failures appear as errors. App identity or version differences are flagged as needing inspection. The GUI has no `--accept-version-change`, environment-variable editor or restore button. An invalid registry entry can fail the entire list operation; this is not a repair UI.
 
-The top sailboat menu opens Harbor, creates a copy or quits Harbor. The main window uses a stable value to reuse it. Closing all windows retains the menu item; normal quit is blocked while an operation is busy. Launched clients remain independent. There is no login item, launchd daemon or periodic polling.
+The sailboat menu provides window, copy creation, language and update controls. Closing the window keeps Harbor running in the menu bar; quitting is blocked while an operation is in progress. Client instances keep running independently. While Harbor runs, it checks the local official app every 60 seconds and checks for Harbor updates daily by default. There is no login item or launchd daemon.
 
 ## Icons
 
@@ -98,18 +98,38 @@ Finder-launched Harbor does not source terminal shell configuration. Environment
 <a id="release-build"></a>
 ## Release builds and signing
 
-Development commands above still produce `dist/Harbor.app` with a debug Swift GUI/native helper, a release Rust CLI and ad-hoc signatures. The separate release command compiles all three programs in release mode and produces `dist/release/Harbor.app`; it neither stops nor replaces the development app. The first release supports macOS 14+ on arm64 only.
+Development commands above still produce `dist/Harbor.app` with a debug Swift GUI/native helper, a release Rust CLI and ad-hoc signatures. The separate release command compiles all three programs in release mode and produces `dist/release/Harbor.app`; it neither stops nor replaces the development app. Release builds target macOS 14+ Universal (arm64 + x86_64); development builds use the host architecture. First install both Rust targets with `rustup target add aarch64-apple-darwin x86_64-apple-darwin`.
 
-For free preview distribution without a Developer ID certificate, use the explicit ad-hoc release mode. It compiles all three programs in release mode, checks their signatures, identifiers, architectures and versions, and outputs `dist/release-adhoc/Harbor.app`. It does not query signing identities, stop the GUI or replace the Developer ID output. It is **not notarized** and does not identify a trusted publisher.
+For free release distribution without a Developer ID certificate, use the explicit ad-hoc release mode. It compiles all three programs in release mode, checks their signatures, identifiers, architectures and versions, and outputs `dist/release-adhoc/Harbor.app`. It does not query signing identities, stop the GUI or replace the Developer ID output. It is **not notarized** and does not identify a trusted publisher.
+
+DMGs use `Harbor-<version>-aarch64-apple-darwin.dmg` and `Harbor-<version>-x86_64-apple-darwin.dmg`. Each contains the matching GUI/CLI/native-helper slice; the embedded Sparkle framework remains Universal. `package_dmg.py` creates both by default; `--target aarch64-apple-darwin` or `--target x86_64-apple-darwin` selects one. It copies the Universal app, extracts those executable slices and re-signs the copy ad-hoc without modifying the input. Automatic updates continue to use one `macos-universal.zip` and signed appcast for both architectures. Older arm64 installations can update to the Universal app through the same feed. Harbor support does not imply Intel support in the official client; the local official app inspected on 2026-09-11 was arm64-only. Native Intel hardware acceptance remains outstanding.
 
 ```bash
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
 ./scripts/build_and_run.sh --release-adhoc
-mkdir -p dist/artifacts
-ditto -c -k --sequesterRsrc --keepParent dist/release-adhoc/Harbor.app dist/artifacts/Harbor-0.0.1-macos-arm64.zip
-python3 scripts/package_dmg.py dist/release-adhoc/Harbor.app
+python3 scripts/package_dmg.py dist/release-adhoc/Harbor.app --output-dir dist/artifacts
 ```
 
-Download the DMG and checksum from the project's GitHub Release. Verify the DMG checksum, open it and drag Harbor.app into the Applications shortcut, then eject the disk and launch Harbor from Applications. Quit Harbor before replacing an installed version. ZIP remains available as an alternative. The packaging script builds a compressed read-only DMG, mounts it to verify signatures and compare every app file with the input release, then updates `SHA256SUMS.txt` for the ZIP (if present) and DMG. It neither rebuilds nor re-signs the app. If you downloaded only one format, compare its hash with the corresponding line in the checksum file. Install the official ChatGPT/Codex app separately. If macOS blocks first launch because the publisher cannot be verified, follow [Apple's instructions](https://support.apple.com/en-us/102445) only after confirming the download's source. No global Gatekeeper changes are required. Installation on another Mac has not yet been verified.
+To install, verify the downloaded DMG against `SHA256SUMS.txt`, open it and drag Harbor.app into Applications. Eject the disk before launching the installed app. Quit Harbor before replacing an existing installation. Install the official ChatGPT/Codex client separately.
+
+The packager creates a compressed read-only DMG, mounts it, verifies signatures and compares its files with the staged app. It then updates `SHA256SUMS.txt` for both DMGs, the Universal ZIP and appcast when present. If you downloaded only one asset, compare its hash with that asset's line in the checksum file.
+
+The commands above generate DMGs only. `scripts/package_update.py` or the tag release workflow generates the automatic-update ZIP and signed appcast. `package_dmg.py` accepts ad-hoc Universal input only; it does not package Developer ID builds.
+
+<a id="first-launch"></a>
+### First launch
+
+Harbor releases use ad-hoc signatures and are not notarized by Apple.
+
+Download from this project's GitHub Release, verify `SHA256SUMS.txt` and install at `/Applications/Harbor.app`. If the developer cannot be verified, try opening once, then choose System Settings → Privacy & Security → Open Anyway. See [Apple guidance](https://support.apple.com/en-us/102445).
+
+Only when the source is trusted, the checksum matches and download quarantine is the cause, the following optional command can be used. It recursively removes Harbor's quarantine attribute, bypassing the first-download check based on that flag; it does not repair files or add notarization. Prefix with `sudo` only if permission is denied.
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Harbor.app"
+```
+
+Do not use this command to bypass explicit malware or “will damage your computer” alerts. Redownload if the checksum differs; do not disable Gatekeeper globally.
 
 For Developer ID signing, follow the separate path below.
 
@@ -121,9 +141,9 @@ HARBOR_SIGNING_IDENTITY=YOUR_CERTIFICATE_SHA1 ./scripts/build_and_run.sh --relea
 
 Replace the placeholder with your certificate fingerprint. Missing, malformed, unavailable or wrong-type identities stop the command before any build or app replacement. There is no ad-hoc fallback. The helpers use stable signing identifiers `local.harbor.desktop.cli` and `local.harbor.desktop.native`; the GUI keeps `local.harbor.desktop` so its existing preferences remain accessible.
 
-The script signs the helpers first, then Harbor.app, using the selected identity, Hardened Runtime and a secure timestamp. Before publishing the local output, `scripts/signing.py` verifies the Apple signing anchor, signatures, signing team, identifiers, runtime flags, timestamps, matching arm64 architectures and matching GUI/CLI/workspace versions. A failed check prevents replacing the previous release app. No additional entitlements are added. These signing settings apply only to Harbor and its own helpers; user-created client copies retain their existing local signing flow and never receive the publisher’s certificate/private key.
+The script signs the helpers first, then Harbor.app, using the selected identity, Hardened Runtime and a secure timestamp. Before publishing the local output, `scripts/signing.py` verifies the Apple signing anchor, signatures, signing team, identifiers, runtime flags, timestamps, matching arm64 + x86_64 architectures and matching GUI/CLI/workspace versions. A failed check prevents replacing the previous release app. No additional entitlements are added. These signing settings apply only to Harbor and its own helpers; user-created client copies retain their existing local signing flow and never receive the publisher’s certificate/private key.
 
-**This command creates a signed app, not a notarized distribution.** Apple notarization, ticket stapling, ZIP/checksum generation, installation testing on another Mac and GitHub Release publishing remain subsequent steps. Do not label this intermediate output as notarized or Gatekeeper-accepted. Release signing is not performed by the current CI: CI tests the gates and builds/verifies the ad-hoc release without accessing signing credentials.
+**Developer ID signing does not include notarization.** Submit the signed app to Apple, staple the ticket, then package and test the installation before publishing. The release workflow uses ad-hoc signing; it does not use a Developer ID certificate.
 
 ## Name badges on instance icons
 
@@ -161,7 +181,7 @@ Quitting the copy with Cmd-Q can leave helper processes running. Returning to Ha
 
 Release builds embed Sparkle 2.9.6. **Harbor → Check for Harbor Updates…** and the menu-bar menu offer manual checks and an **Automatically Check for Harbor Updates** toggle. Automatic checks default to once a day while Harbor runs; installation requires confirmation. Sparkle downloads, verifies, replaces Harbor and relaunches it. Checks are refused during a Harbor operation, relaunch is postponed until idle, and the normal termination guard remains active. Managed client copies and account directories are not updated by this mechanism. Debug builds disable the updater. Harbor menu labels follow the selected language; Sparkle's own standard dialogs follow the system's supported language.
 
-The stable feed is `https://github.com/fynntang/harbor/releases/latest/download/appcast.xml`. Drafts and prereleases are not this channel. Both the feed and ZIP must carry valid Ed25519 signatures using the public key in `config/sparkle-public-key.txt`. Invalid signatures block installation; verification happens before extraction. Failed network checks do not replace the app. Updates require a greater workspace version; both macOS version fields use the same Cargo version. The currently published 0.0.1 has no updater: users must install an updater-enabled release manually once. Until a stable release includes the feed, manual checks can report that the feed is unavailable.
+The stable feed is `https://github.com/fynntang/harbor/releases/latest/download/appcast.xml`. Drafts and prereleases are not this channel. Both the feed and ZIP must carry valid Ed25519 signatures using the public key in `config/sparkle-public-key.txt`. Invalid signatures block installation; verification happens before extraction. Failed network checks do not replace the app. Updates require a greater workspace version; both macOS version fields use the same Cargo version. The historical 0.0.1 release has no updater: users still on that version must manually upgrade once. Subsequent releases use the stable feed.
 
 ### Prepare and publish an update
 
@@ -178,18 +198,20 @@ python3 scripts/package_update.py dist/release-adhoc/Harbor.app --output-dir dis
 
 For Developer ID builds, use `--release-only` and pass the signing team through `package_update.py --team TEAM_ID`; notarize/staple the final app before packaging. Ed25519 update signing does not replace Developer ID signing or notarization. The current DMG packager validates ad-hoc builds only.
 
-3. Validate the artifacts and install/relaunch on a test Mac, then attach the generated ZIP, DMG, `appcast.xml`, and `SHA256SUMS.txt` to the matching `v<version>` GitHub Release. Publish as a stable release and mark it latest. Upload all assets while the release is still a draft; publish only after they are complete. The stable URL then resolves to the new signed feed. Never modify signed XML or ZIP bytes after signing.
+3. Validate the artifacts and install/relaunch on a test Mac, then attach the two DMGs, Universal ZIP, `appcast.xml`, and `SHA256SUMS.txt` to the matching `v<version>` GitHub Release. Publish as a stable release and mark it latest. Upload all assets while the release is still a draft; publish only after they are complete. The stable URL then resolves to the new signed feed. Never modify signed XML or ZIP bytes after signing.
 
 `package_update.py` checks the final bundle, embedded key/feed/version and Keychain key match, signs and verifies both ZIP and feed, then writes checksums. It does not upload, change Git tags or export private keys. See [Sparkle documentation](https://sparkle-project.org/documentation/) for updater behavior and signing-key recovery limitations.
 
 ### Calendar release labels
 
-Tags use `vYY.M.DHHmm`, based on the release's Asia/Shanghai date and 24-hour time. Month and day have no leading zero; the final time always has four digits. September 1 at midnight is `v26.9.10000`; September 10 at 11:56 is `v26.9.101156`. `0000` is a valid midnight time. No digit-sum encoding is used. Cargo is the source of truth, and GUI, CLI, build version, appcast and asset names use the same numeric version (only tags have `v`). The current configured version is `26.9.101928` (2026-09-10 19:28). `scripts/version.py` validates dates, leap years and hours/minutes. Numeric component comparisons preserve minute/hour/day/month/year order; raw lexicographic string sorting is not suitable. Only one release per minute can have a unique label: wait for the next minute rather than reusing a tag. Supported years are 2000–2099. Set the version at release preparation time and update Cargo.lock; builds do not change it automatically.
+Tags use `vYY.M.DHHmm` with the release time in Asia/Shanghai. Month and day have no leading zero; `HHmm` always has four digits, and seconds are omitted. Examples: `v26.9.10000` for September 1 at midnight and `v26.12.240118` for December 24 at 01:18. Set the version in Cargo and update Cargo.lock before building. GUI, CLI, build metadata, appcast and asset names use that version without `v`.
+
+`scripts/version.py` validates dates and times for 2000–2099. Compare version components numerically, not as strings. Use a new tag for each release; if releasing again in the same minute, wait for the next minute.
 
 ### GitHub Actions release workflow
 
-`.github/workflows/release.yml` runs on future `v*` tag pushes whose commit contains the workflow. It checks that the tag matches Cargo, runs Rust/Swift/Python checks, builds on an arm64 macOS runner, verifies the DMG, and signs ZIP/appcast before publishing a complete stable Release as latest. It requires repository Actions secret `SPARKLE_PRIVATE_KEY` containing the existing Sparkle signing key's base64 export. Use the same key as the installed public key; never create a new identity for CI or place the secret in source. Only provision it through a secure secret input, never a command-line argument or log.
+`.github/workflows/release.yml` runs when a `v*` tag is pushed. It checks that the tag matches Cargo, runs Rust/Swift/Python checks, cross-compiles both architectures on a macOS runner, verifies the DMG, and signs ZIP/appcast before publishing a complete stable Release as latest. It requires repository Actions secret `SPARKLE_PRIVATE_KEY` containing the existing Sparkle signing key's base64 export. Use the same key as the installed public key; never create a new identity for CI or place the secret in source. Only provision it through a secure secret input, never a command-line argument or log.
 
-`ci_sign_update.py` removes the secret from its environment and passes it only through stdin to `package_update.py`. CryptoKit derives and checks its public key before Sparkle signs and verifies the archive/feed via stdin. No CI Keychain import or private-key file is needed. Build/test steps do not receive the key. `publish_release.py` refuses an existing release or an older stable version, requires all four assets and matching checksums, uploads to a draft, checks uploaded sizes, then publishes. A failure after draft creation leaves the draft for manual inspection; it is not overwritten on retry. Publication is serialized. This workflow currently produces ad-hoc builds, not Developer ID/notarized builds. A missing secret fails before building. The old `v26.9.101046` tag predates this workflow and is published locally; do not move it to trigger automation.
+`ci_sign_update.py` removes the secret from its environment and passes it only through stdin to `package_update.py`. CryptoKit derives and checks its public key before Sparkle signs and verifies the archive/feed via stdin. No CI Keychain import or private-key file is needed. Build/test steps do not receive the key. `publish_release.py` refuses an existing release or an older stable version, requires all five assets (two DMGs, Universal ZIP, appcast and checksums) and matching checksums, uploads to a draft, checks uploaded sizes, then publishes. A failure after draft creation leaves the draft for manual inspection; it is not overwritten on retry. Publication is serialized. This workflow currently produces ad-hoc builds, not Developer ID/notarized builds. A missing secret fails before building.
 
-The workflow also supports **Run workflow** (`workflow_dispatch`) on main as a validation-only run: it builds and signs with the configured Secret and verifies the complete asset set, but never creates or edits a Release. Actual publication only happens on a `v*` tag push. The repository's signing Secret has been configured with authorization; maintainers should keep its access limited to trusted release code.
+The workflow also supports **Run workflow** (`workflow_dispatch`) on main as a validation-only run: it builds and signs with the configured Secret and verifies the complete asset set, but never creates or edits a Release. Actual publication only happens on a `v*` tag push. Limit access to the signing Secret to trusted release code.

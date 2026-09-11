@@ -2,7 +2,15 @@
 
 [English](../ARCHITECTURE.md) | 简体中文 · [文档目录](README.md)
 
-本文描述 2026-09-08 核查的当前仓库实现。描述与代码不一致时，以代码为准。这不是上游兼容性承诺或安全认证。
+Harbor 使用 Swift 实现 macOS 界面与原生操作，使用 Rust 管理实例。本页说明数据路径、进程检查和失败处理。
+
+## 架构与分发
+
+开发构建使用本机架构；发布构建通过 Swift 双架构编译和 Rust `aarch64-apple-darwin` / `x86_64-apple-darwin` 编译、合并，生成 Universal GUI、CLI 和原生辅助程序。发布签名检查要求三个程序均包含 arm64 与 x86_64。
+
+DMG 打包复制 Universal 应用，提取三个程序的目标架构并重新 ad-hoc 签名，再校验挂载内容。Sparkle 框架保留 Universal。两份 DMG 使用 `aarch64-apple-darwin` 和 `x86_64-apple-darwin` 后缀；自动更新 ZIP 保留 Universal，因此两个架构共用现有签名更新地址。发布要求两个 DMG、ZIP、appcast 和校验和共五项附件。
+
+浏览器辅助进程仅识别实例插件目录内 `macos/arm64`、`macos/x64` 或 `macos/x86_64` 下的已知 host；其他身份、所有者和进程检查不变。Harbor 的双架构构建不会转换或保证官方客户端的 Intel 兼容性。
 
 ## 组件
 
@@ -83,33 +91,24 @@ clone 同时为 Launch Services 修改 `LSEnvironment`，直接执行主程序�
 
 [auxiliary.rs](../../crates/harbor-core/src/auxiliary.rs) 扫描应用和两个数据目录下的可执行路径。已知 Crashpad、Computer Use 和快捷键监视孤儿进程，仅在 UID 为当前用户、父 PID 为 1，且重新核对可执行路径/属主/父进程/启动时间后，才可能接收 SIGTERM。不回退到 SIGKILL。这些进程表和 libproc 检查减少误操作，不是抵御同用户恶意进程的原子保护。
 
+浏览器定向清理：主应用退出后，可向该实例插件缓存中已识别路径的 Chrome native host 发送 SIGTERM，即使其浏览器父进程仍在运行。精确路径 `.plugin-appserver/codex` 仅在已孤立或父进程是同实例 native host 时可清理，先处理 host。保留浏览器、其他实例以及无关活跃进程，并在发信号前重验进程身份。
+
+停止托管副本时，先将 Brave、Chrome 和 Edge 中指向该实例的 native messaging 注册备份到 Profile 目录的 `browser-registrations`，并移除原注册，再请求辅助进程退出。启动时仅恢复到空注册位置，保留其他实例的注册，避免浏览器自动重连且无需退出浏览器。
+
+
 删除要求扫描结果无进程、`adopted_data=false`、Harbor 风格 ID 和精确的专属数据路径，并检查其他实例与保留目录重叠。默认先排他移动 Profile 到私有 `retained` 目录，再把应用移到废纸篓；明确删除数据时才把应用和 Profile 一起移走。错误会尝试不覆盖式还原，中断或回滚失败可能需要人工恢复。代码不会清空废纸篓。整体移动账号目录与解析/复制凭据内容不同。详见[恢复说明](GUI.md#removal-and-recovery)。
 
 [icon.rs](../../crates/harbor-core/src/icon.rs) 额外要求登记版本/构建号和已知图标结构，使用 `cp -cR` 暂存、签名/验证后原子交换。暂存和交换前只检查主可执行程序，不使用完整辅助进程扫描。GUI 要求 JSON 状态为 `stopped`，因而也会阻止残留进程状态。图标/删除资格由清单和路径检查决定，没有独立的 clone 来源证明。生命周期 stop/remove 不像 icon/start 那样要求版本相等。
 
-## 诊断与证据边界
+## 诊断与限制
 
 文本 `status` 和 `doctor` 的进程部分只检查主进程。JSON status/list 能报告 `helpers_running`，但 `pids` 仍只列主进程。均不读取登录身份或验证运行进程环境。路径/元数据/身份/签名错误会导致 `doctor` 失败，但仅版本差异、缺少旧构建号和已报告的启动冲突不会设置诊断失败标记。JSON doctor 对已完成但失败的诊断返回 `ok=true`、退出 0、`data.passed=false`；Store 初始化错误仍会使 envelope 失败。
 
 系统不隔离 HOME、Keychain、项目、系统权限或全部 Skills/MCP 存储。不实现 OAuth 回调路由、自动官方更新、账号/数据库迁移或任意客户端支持，不能阻止客户端遵循配置访问被分配数据目录以外的路径。
 
-## 文档核查，2026-09-08
+## 版本来源
 
-以下差异已在文档中修正，没有改变程序行为：
-
-| 原描述 | 当前代码与文档 |
-|---|---|
-| 主要描述为 Rust 启动器，遗漏 GUI 操作 | Swift GUI + CLI，包含停止/删除和原生 helper。 |
-| 程序从不发送 kill 信号 | 支持的孤儿清理使用 SIGTERM，主程序退出使用 AppKit，不回退 SIGKILL。 |
-| 所有命令只引用账号数据 | 接管原地引用；删除可能把整个目录移动到保留区/废纸篓。 |
-| dry-run 或 doctor 成功代表可启动 | dry-run 范围有限；doctor 警告可通过；启动单独执行版本门禁。 |
-| 直接启动应用没有 Profile 路由 | clone 有 LSEnvironment，但直接启动绕过 Harbor 校验/允许名单。 |
-| 文本/JSON 状态与 GUI/CLI 图标保护等价 | 分别说明主进程检查和包含辅助进程的检查。 |
-| 准备好/接管的应用通过厂商验证 | 厂商信任验证属于 clone，create/adopt 检查结构/元数据。 |
-| 只有一个当前版本且不需要 Python | 版本从 Cargo 日历版本 `26.9.101928` 派生；打包使用 Python 3。 |
-| 旧实验路径和历史测试看起来像当前前提/结果 | 改用通用示例；[测试记录](TESTING.md)区分本轮检查与历史证据。 |
-
-核查后已统一版本：[Cargo.toml](../../Cargo.toml) 提供 `26.9.101928`，[打包脚本](../../scripts/build_and_run.sh) 从 Cargo metadata 读取 CLI 版本用于 GUI。GUI 显示 `26.9.101928`，构建号保留 Cargo 规范化形式，用于 Sparkle 更新比较。文档本地化不代表界面文字已本地化。
+版本由 [Cargo.toml](../../Cargo.toml) 定义。[构建脚本](../../scripts/build_and_run.sh) 读取 Cargo metadata，设置 GUI 版本和构建号。CLI、GUI 与 Sparkle 使用同一数字版本。
 
 ## GUI 语言状态
 
@@ -118,7 +117,3 @@ GUI 在 `HarborStore` 中持有一个可观察的 `GUILocalization`，由 `UserD
 ## 托管副本更新
 
 `update` 持有注册锁，验证现有身份/版本及停止状态，再以原 Profile 身份、新版本快照准备通过厂商签名验证的替换应用。在暂存前和发布前检查应用及数据目录中的全部辅助进程。自定义图标在签名前沿用。原子交换应用、校验最终签名后，用已刷盘的临时清单原子替换 `profile.json`。清单发布前失败会换回旧应用；回滚失败保留暂存并报告路径。应用与清单不是单个文件系统事务：两次写入之间异常退出会留下可检测的版本不匹配，需要检查恢复。不会备份或回滚账号数据库。
-
-浏览器定向清理：主应用退出后，可向该实例插件缓存中已识别路径的 Chrome native host 发送 SIGTERM，即使其浏览器父进程仍在运行。精确路径 `.plugin-appserver/codex` 仅在已孤立或父进程是同实例 native host 时可清理，先处理 host。保留浏览器、其他实例以及无关活跃进程，并在发信号前重验进程身份。
-
-停止托管副本时，先将 Brave、Chrome 和 Edge 中指向该实例的 native messaging 注册备份到 Profile 目录的 `browser-registrations`，并移除原注册，再请求辅助进程退出。启动时仅恢复到空注册位置，保留其他实例的注册，避免浏览器自动重连且无需退出浏览器。

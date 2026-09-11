@@ -2,9 +2,7 @@
 
 [English](README.md) | 简体中文
 
-Harbor 是用于创建、启动独立 ChatGPT/Codex 桌面实例的 macOS GUI 和 Rust CLI。它为每个实例指定独立的 Codex 与 GUI 数据目录。它**不是安全沙箱**：HOME、Keychain、SSH、Git、Docker、系统权限和项目访问仍然共享。
-
-当前适配器检查已测试的 Chromium/Codex 应用结构，不支持所有名为 ChatGPT 的应用或任意 AI 客户端。本地副本使用 ad-hoc 签名，不保留厂商身份或公证。OAuth、Browser/Computer Use 和完整账号隔离不作保证。
+Harbor 用来创建和管理 ChatGPT/Codex 桌面副本，让不同账号使用各自的数据目录。提供 macOS 图形界面和 Rust 命令行工具。
 
 [文档目录](docs/zh-CN/README.md) · [GUI 指南](docs/zh-CN/GUI.md) · [实现与边界](docs/zh-CN/ARCHITECTURE.md) · [测试记录](docs/zh-CN/TESTING.md) · [参考来源](docs/zh-CN/REFERENCES.md)
 
@@ -12,21 +10,39 @@ Harbor 是用于创建、启动独立 ChatGPT/Codex 桌面实例的 macOS GUI �
     <img src="https://www.nxgntools.com/api/embed/harbor-1?type=FEATURED_ON" alt="Featured on NxGn Tools" style="height: 48px; width: auto;" />
 </a>
 
+## 平台与安装包
+
+Harbor 支持 macOS 14+ 的 Apple Silicon 和 Intel Mac。发布构建先生成 Universal 应用，再分别打包：
+
+| Mac 类型 | DMG 文件名 |
+|---|---|
+| Apple Silicon（M 系列） | `Harbor-<version>-aarch64-apple-darwin.dmg` |
+| Intel（x64 / x86_64） | `Harbor-<version>-x86_64-apple-darwin.dmg` |
+
+两个架构共用 `Harbor-<version>-macos-universal.zip` 进行自动更新。Intel 副本要求官方客户端本身包含 Intel 架构，Harbor 不会将 ARM 客户端转换成 x86。当前验证包括 Rosetta 下的 Intel 测试，尚未完成 Intel 实机与官方 Intel 客户端验收。详见[测试记录](docs/zh-CN/TESTING.md)。
+
 ## 使用 GUI 开始
 
-构建要求：macOS 14+、Rust 1.89+ 与 Cargo、Swift 6+ 与 macOS SDK/工具、Bash、Python 3。打包脚本使用 Python 3；打包后的应用不需要另行安装 Harbor CLI 或 Python 解释器。
+1. 从 [GitHub Releases](https://github.com/fynntang/harbor/releases) 下载适合你 Mac 的 DMG，打开后把 Harbor.app 拖入 Applications。
+2. 安装官方 ChatGPT/Codex 客户端。
+3. 打开 Harbor，点击**创建副本**，填写名称（如 `work`）并选择官方应用。
+4. 创建完成后点击**启动**，在副本窗口中登录。
 
-先安装官方应用，然后在仓库根目录执行：
+Harbor 使用 ad-hoc 签名，未经 Apple 公证。首次打开遇到开发者验证提示时，参见[首次打开说明](docs/zh-CN/GUI.md#first-launch)。应用内置 CLI 和原生辅助程序，无需另装 Rust 或 Python。
+
+GUI 支持创建、更新、启动、停止和删除副本，也能检查状态、更换图标。图标可以使用官方原图加彩色名称角标。更新本机官方客户端后，Harbor 会提醒可更新的副本；Harbor 自身也支持[自动检查更新](docs/zh-CN/GUI.md#harbor-自动更新)，安装前需要确认。
+
+关闭窗口后 Harbor 继续在菜单栏运行，退出 Harbor 不会结束副本。语言可在工具栏或菜单中切换为 English / 简体中文，选择会保存。底层诊断和系统对话框保留原始或系统语言。
+
+### 从源码运行
+
+需要 macOS 14+、Rust 1.89+ 与 Cargo、Swift 6+ 与 macOS SDK、Bash 和 Python 3。在仓库根目录执行：
 
 ```bash
 ./scripts/build_and_run.sh
 ```
 
-打开 `dist/Harbor.app`，选择**创建副本**，填写 `work`，选择官方来源应用并创建。点击**启动**后，在新客户端窗口内登录。创建副本不会自动启动或登录。
-
-GUI 支持创建、启动、停止、删除、刷新状态、检查、实例图标和在 Finder 打开路径。关闭窗口会保留 Harbor 菜单栏入口；退出 Harbor 不会结束已启动的客户端。没有开机启动项或后台守护服务。可在工具栏语言选择器、Harbor 应用菜单或顶部菜单栏入口中切换 English / 简体中文，立即生效并在重启后保留。底层诊断原文和系统控制的对话框保留原始/系统语言。
-
-应用内置 `harbor` 和 `harbor-native`，请保持整个 bundle 完整。Codex 的 Run 操作使用同一个构建脚本。
+脚本生成并打开 `dist/Harbor.app`，Codex 的 Run 操作也使用这个脚本。移动应用时请保留完整的 `.app` 目录。
 
 ## 使用 CLI 开始
 
@@ -125,6 +141,10 @@ dist/Harbor.app/Contents/Helpers/harbor remove work --yes
 
 ## 路由、版本与边界
 
+Harbor 只分开 Codex 和 GUI 数据目录，不是安全沙箱。HOME、Keychain、SSH、Git、Docker、系统权限和项目访问仍然共享。
+
+当前适配器检查已测试的 Chromium/Codex 应用结构，不支持所有名为 ChatGPT 的应用或任意 AI 客户端。本地副本使用 ad-hoc 签名，不保留厂商身份或公证。OAuth、Browser/Computer Use 和完整账号隔离不作保证。
+
 `start` 固定设置 `CODEX_HOME`、`CODEX_ELECTRON_USER_DATA_PATH`、`CODEX_SPARKLE_ENABLED=false` 和单个 `--user-data-dir` 参数。`--cwd` 默认是用户 HOME，不是调用时的仓库。环境变量采用允许名单；登记时可通过重复的 `--pass-env` 增加变量**名称**。值在启动时读取，不写入 `profile.json`。保留名称和注入敏感名称会被拒绝。详见[环境变量行为](docs/zh-CN/ARCHITECTURE.md#environment)。
 
 `start --dry-run` 检查已登记路径并显示路由，不执行完整启动、版本、签名检查。`doctor` 把版本变化和旧清单缺少构建号作为警告，仅这些警告不会使命令失败。`start` 默认仍会阻止这些情况。审查版本变化后，可通过 CLI 单次允许：
@@ -138,6 +158,12 @@ harbor start work --accept-version-change
 通过 Harbor 启动才能保留这些检查。clone 还设置了供 Launch Services 使用的 `LSEnvironment`，但双击副本 `.app` 会绕过 Harbor 校验和环境允许名单。`create`/`adopt` 不修改这些字段。
 
 Harbor 不管理官方更新、不仲裁 OAuth URL 回调、不隔离全部 Skills/MCP 存储、不阻止访问其他项目，也不重写客户端配置覆盖。两个桌面端专用 `CODEX_*` 开关属于版本相关兼容控制。`remove` 可能整体移动账号目录；Harbor 不解析或复制凭据内容。
+
+## 下一阶段里程碑
+
+下一阶段计划兼容 **Windows**，优先适配 x64，覆盖实例管理、图形界面、系统托盘、安装与更新。先验证官方客户端能否可靠使用独立数据目录，再推进核心适配和 GUI；Windows 版本范围与 ARM64 支持待评估。
+
+当前支持 macOS，Windows 属于后续计划。具体步骤和完成标准见[路线图](docs/zh-CN/ROADMAP.md)。
 
 ## 开发与文档
 
@@ -156,10 +182,6 @@ cargo run -p harbor-cli -- --help
 swift test --package-path apps/Harbor --scratch-path target/swift-harbor
 ```
 
-发行标签采用 `vYY.M.DHHmm`，当前为 `v26.9.101928`。Cargo、CLI、GUI、构建号和附件名称均使用 `26.9.101928`，由 Cargo metadata 派生。月份和日期不补零，时间后缀保留四位 `HHmm`。包元数据声明 MIT 许可。本地 ad-hoc 打包不等于经过公证的发行版。[测试记录](docs/zh-CN/TESTING.md)区分当前检查、历史客户端实验，以及待完成的账号/GUI 验收。`SOURCE_CHECKS.txt` 是历史快照，不是当前验收证据。
+Harbor 采用 MIT 许可，通过 GitHub Releases 发布更新，标签格式为 `vYY.M.DHHmm`。版本以 [Cargo.toml](Cargo.toml) 为准，GUI、CLI、构建号和附件名称保持一致。详见[发布流程](docs/zh-CN/GUI.md#release-build)。
 
-macOS 14+ Apple Silicon 预览版可从 [GitHub Releases](https://github.com/fynntang/harbor/releases) 下载 DMG，打开后将 Harbor.app 拖入 Applications 即可安装；也保留 ZIP 格式。应用使用 Release 编译与本地 ad-hoc 签名，未经 Apple 公证。安装、免费分发及独立的 Developer ID 流程见[发布构建与签名](docs/zh-CN/GUI.md#release-build)。
-
-GUI 支持基于官方图标生成彩色名称角标及单色菜单栏简称。创建时可预览角标；已有副本停止后可通过 **更换图标 → 原版加角标** 应用。
-
-Harbor 发行构建支持通过 GitHub Releases 自动检查签名更新，安装前需要确认。现有 0.0.1 用户需先手动升级一次。详见[自动更新与发布流程](docs/zh-CN/GUI.md#harbor-自动更新)。
+[测试记录](docs/zh-CN/TESTING.md)按日期保留验证结果与待验证项目。`SOURCE_CHECKS.txt` 是早期开发快照。
