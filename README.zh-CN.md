@@ -8,6 +8,10 @@ Harbor 是用于创建、启动独立 ChatGPT/Codex 桌面实例的 macOS GUI �
 
 [文档目录](docs/zh-CN/README.md) · [GUI 指南](docs/zh-CN/GUI.md) · [实现与边界](docs/zh-CN/ARCHITECTURE.md) · [测试记录](docs/zh-CN/TESTING.md) · [参考来源](docs/zh-CN/REFERENCES.md)
 
+<a href="https://www.nxgntools.com/tools/harbor-1?utm_source=harbor-1" target="_blank" rel="noopener" style="display: inline-block; width: auto;">
+    <img src="https://www.nxgntools.com/api/embed/harbor-1?type=FEATURED_ON" alt="Featured on NxGn Tools" style="height: 48px; width: auto;" />
+</a>
+
 ## 使用 GUI 开始
 
 构建要求：macOS 14+、Rust 1.89+ 与 Cargo、Swift 6+ 与 macOS SDK/工具、Bash、Python 3。打包脚本使用 Python 3；打包后的应用不需要另行安装 Harbor CLI 或 Python 解释器。

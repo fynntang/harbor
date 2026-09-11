@@ -8,6 +8,10 @@ The adapter checks the tested Chromium/Codex app layout. It does not support eve
 
 [Documentation](docs/README.md) · [GUI guide](docs/GUI.md) · [Implementation and limits](docs/ARCHITECTURE.md) · [Testing](docs/TESTING.md) · [References](docs/REFERENCES.md)
 
+<a href="https://www.nxgntools.com/tools/harbor-1?utm_source=harbor-1" target="_blank" rel="noopener" style="display: inline-block; width: auto;">
+    <img src="https://www.nxgntools.com/api/embed/harbor-1?type=FEATURED_ON" alt="Featured on NxGn Tools" style="height: 48px; width: auto;" />
+</a>
+
 ## Start with the GUI
 
 Build requirements: macOS 14+, Rust 1.89+ with Cargo, Swift 6+ with macOS SDK/tools, Bash and Python 3. The packaging script uses Python 3; the packaged app does not require a separately installed Harbor CLI or Python interpreter.
