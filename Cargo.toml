@@ -3,7 +3,7 @@ members = ["crates/harbor-core", "crates/harbor-cli"]
 resolver = "2"
 
 [workspace.package]
-version = "26.9.101928"
+version = "26.9.111926"
 edition = "2021"
 rust-version = "1.89"
 license = "MIT"
